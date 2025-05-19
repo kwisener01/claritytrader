@@ -11,7 +11,7 @@ uploaded_file = st.file_uploader("Upload CSV or use example data", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 else:
-    df = pd.read_csv("example_data.csv")
+    df = pd.read_csv("spy_training_data.csv")
 
 st.write("### Preview Data", df.head())
 
