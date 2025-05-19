@@ -1,4 +1,5 @@
 import pandas as pd
+import streamlit as st
 
 def generate_signal(row):
     # Basic rule-based logic
