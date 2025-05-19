@@ -22,3 +22,13 @@ def run_backtest(df):
         "Sell Signals": len(sells),
         "Hold Signals": len(df) - len(buys) - len(sells)
     }
+
+
+from sklearn.ensemble import RandomForestClassifier
+
+def train_model(df):
+    X = df[["RSI", "Momentum", "ATR", "Volume"]]
+    y = df["Label"]
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X, y)
+    return model
