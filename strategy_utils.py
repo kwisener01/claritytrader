@@ -26,9 +26,30 @@ def run_backtest(df):
 
 from sklearn.ensemble import RandomForestClassifier
 
-def train_model(df):
+def train_model(df, apply_bayesian=False):
+    if apply_bayesian:
+        # Estimate signal quality (you can refine this with backtest stats)
+        prior_success = 0.6  # example base win rate
+        likelihood_signal = len(df) / len(df)  # dummy for now
+        likelihood_success_signal = 0.7  # assume this signal shows up in 70% of winners
+        adjustment = bayesian_update(prior_success, likelihood_success_signal, likelihood_signal)
+        st.info(f"Bayesian Adjusted Win Probability: {adjustment * 100:.2f}%")
+
+
     X = df[["RSI", "Momentum", "ATR", "Volume"]]
     y = df["Label"]
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
     return model
+
+
+def bayesian_update(prior_success, likelihood_success_signal, likelihood_signal):
+    """
+    Apply Bayes' Theorem:
+    P(Success | Signal) = (P(Signal | Success) * P(Success)) / P(Signal)
+    """
+    try:
+        posterior = (likelihood_success_signal * prior_success) / likelihood_signal
+        return round(posterior, 4)
+    except ZeroDivisionError:
+        return 0.0
