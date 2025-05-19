@@ -33,13 +33,22 @@ except:
 # Predict section
 st.write("### Generate Signal")
 row = df.iloc[-1].drop("Label", errors="ignore").to_dict()
+threshold = 70  # Confidence threshold in percent
+
 if model:
     input_df = pd.DataFrame([row])[["RSI", "Momentum", "ATR", "Volume"]]
     pred = model.predict(input_df)[0]
+    proba = model.predict_proba(input_df)[0]
+    confidence = round(100 * max(proba), 2)
+
+    if confidence >= threshold:
+        st.metric(label="Predicted Signal", value=pred)
+        st.write(f"🧠 Confidence: **{confidence}%**")
+    else:
+        st.warning(f"🧠 No signal. Confidence too low to act ({confidence}%)")
 else:
     pred = generate_signal(row)
-
-st.metric(label="Predicted Signal", value=pred)
+    st.metric(label="Predicted Signal (Rule-Based)", value=pred)
 
 # Run backtest
 st.write("### Backtest Strategy")
