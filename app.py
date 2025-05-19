@@ -16,8 +16,9 @@ else:
 st.write("### Preview Data", df.head())
 
 # Option to train model
+apply_bayes = st.checkbox("Use Bayesian Forecasting", value=True)
 if st.button("🛠️ Train Model Now"):
-    model = train_model(df)
+    model = train_model(df, apply_bayes)
     with open("model.pkl", "wb") as f:
         pickle.dump(model, f)
     st.success("Model trained and saved as model.pkl")
