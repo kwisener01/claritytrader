@@ -1,8 +1,8 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 
 def generate_signal(row):
-    # Basic rule-based logic
     if row["RSI"] < 30 and row["Momentum"] > 0:
         return "Buy"
     elif row["RSI"] > 70 and row["Momentum"] < 0:
@@ -24,33 +24,24 @@ def run_backtest(df):
         "Hold Signals": len(df) - len(buys) - len(sells)
     }
 
-
-from sklearn.ensemble import RandomForestClassifier
-
 def train_model(df, apply_bayesian=False):
-    if apply_bayesian:
-        # Estimate signal quality (you can refine this with backtest stats)
-        prior_success = 0.6  # example base win rate
-        likelihood_signal = len(df) / len(df)  # dummy for now
-        likelihood_success_signal = 0.7  # assume this signal shows up in 70% of winners
-        adjustment = bayesian_update(prior_success, likelihood_success_signal, likelihood_signal)
-        st.info(f"Bayesian Adjusted Win Probability: {adjustment * 100:.2f}%")
-
-
     X = df[["RSI", "Momentum", "ATR", "Volume"]]
     y = df["Label"]
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
     return model
 
+def bayesian_update_user():
+    st.write("### 🎯 Bayesian Adjustment Inputs")
+    prior_success = st.slider("📊 Prior Win Rate (P(Success))", 0.1, 0.99, 0.6, 0.01)
+    likelihood_success_signal = st.slider("📈 Likelihood of Signal in Winning Trades (P(Signal|Success))", 0.1, 1.0, 0.7, 0.01)
+    likelihood_signal = st.slider("📉 Overall Signal Frequency (P(Signal))", 0.1, 1.0, 0.5, 0.01)
 
-def bayesian_update(prior_success, likelihood_success_signal, likelihood_signal):
-    """
-    Apply Bayes' Theorem:
-    P(Success | Signal) = (P(Signal | Success) * P(Success)) / P(Signal)
-    """
     try:
         posterior = (likelihood_success_signal * prior_success) / likelihood_signal
-        return round(posterior, 4)
+        posterior = min(posterior, 1.0)
     except ZeroDivisionError:
-        return 0.0
+        posterior = 0.0
+
+    st.success(f"🧠 Adjusted Probability of Success: {posterior * 100:.2f}%")
+    return posterior
