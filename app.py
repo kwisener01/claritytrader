@@ -32,9 +32,10 @@ except:
 
 # Predict section
 st.write("### Generate Signal")
-row = df.iloc[-1].to_dict()
+row = df.iloc[-1].drop("Label", errors="ignore").to_dict()
 if model:
-    pred = model.predict(pd.DataFrame([row]))[0]
+    input_df = pd.DataFrame([row])[["RSI", "Momentum", "ATR", "Volume"]]
+    pred = model.predict(input_df)[0]
 else:
     pred = generate_signal(row)
 
