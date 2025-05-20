@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
+from live_data import fetch_latest_data
 
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
@@ -17,6 +18,28 @@ st.write("### Preview Data", df.head())
 apply_bayes = st.checkbox("Use Bayesian Forecasting", value=True)
 if apply_bayes:
     bayesian_update_user()
+
+if st.button("📡 Get Live Signal"):
+    live_row = fetch_latest_data(symbol="SPY", api_key="7c53601780c14ef5a6893e0d522e2388")
+    if "error" in live_row:
+        st.error(f"API Error: {live_row['error']}")
+    else:
+        input_df = pd.DataFrame([{
+            "RSI": live_row["RSI"],
+            "Momentum": live_row["Momentum"],
+            "ATR": live_row["ATR"],
+            "Volume": live_row["Volume"]
+        }])
+        pred = model.predict(input_df)[0]
+        proba = model.predict_proba(input_df)[0]
+        confidence = round(100 * max(proba), 2)
+        if confidence >= threshold:
+            st.metric(label="LIVE Signal", value=pred)
+            st.write(f"🧠 Confidence: **{confidence}%**")
+        else:
+            st.warning(f"No signal. Confidence too low ({confidence}%)")
+
+
 
 if st.button("🛠️ Train Model Now"):
     model = train_model(df, apply_bayes)
