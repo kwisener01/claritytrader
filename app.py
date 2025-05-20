@@ -14,6 +14,18 @@ if uploaded_file:
 else:
     df = pd.read_csv("spy_training_data.csv")
 
+
+
+st.write("### 📡 Live Signal (1-min Data Feed)")
+
+col1, col2 = st.columns(2)
+with col1:
+    ticker = st.selectbox("Choose Ticker (ETF Proxy)", ["SPY", "QQQ", "DIA", "IWM"])
+with col2:
+    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+
+
+
 # Confidence threshold control
 threshold = st.slider("🎯 Confidence Threshold (%)", min_value=50, max_value=100, value=70, step=1)
 
@@ -60,14 +72,6 @@ else:
 ## Live Signal from SPY using Twelve Data
 #st.write("### 📡 Live Signal (SPY via Twelve Data)")
 #api_key = st.text_input("🔑 Enter your Twelve Data API Key", type="password")
-
-st.write("### 📡 Live Signal (1-min Data Feed)")
-
-col1, col2 = st.columns(2)
-with col1:
-    ticker = st.selectbox("Choose Ticker (ETF Proxy)", ["SPY", "QQQ", "DIA", "IWM"])
-with col2:
-    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
 if st.button("🔍 Get Live Signal"):
     if model is None:
