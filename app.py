@@ -69,6 +69,36 @@ else:
     pred = generate_signal(row)
     st.metric(label="Predicted Signal (Rule-Based)", value=pred)
 
+
+
+import datetime
+import pytz
+import time
+
+st.markdown("### 🔁 Auto Refresh Settings")
+
+auto_refresh = st.checkbox("Enable Auto Refresh", value=False)
+refresh_interval = st.number_input("Refresh Interval (seconds)", min_value=5, max_value=60, value=30, step=5)
+
+# Define market hours (Eastern Time)
+eastern = pytz.timezone("US/Eastern")
+now_et = datetime.datetime.now(eastern)
+market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+
+market_hours = market_open <= now_et <= market_close
+weekday = now_et.weekday() < 5  # Mon–Fri = 0–4
+
+if auto_refresh and market_hours and weekday:
+    st.info(f"🔁 Refreshing every {refresh_interval} seconds during market hours")
+    time.sleep(refresh_interval)
+    st.experimental_rerun()
+elif auto_refresh:
+    st.warning("⏹ Auto-refresh is paused — market is closed.")
+
+
+
+
 ## Live Signal from SPY using Twelve Data
 #st.write("### 📡 Live Signal (SPY via Twelve Data)")
 #api_key = st.text_input("🔑 Enter your Twelve Data API Key", type="password")
