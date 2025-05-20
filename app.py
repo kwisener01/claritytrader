@@ -61,13 +61,21 @@ else:
 st.write("### 📡 Live Signal (SPY via Twelve Data)")
 api_key = st.text_input("🔑 Enter your Twelve Data API Key", type="password")
 
-if st.button("Get Live Signal"):
+st.write("### 📡 Live Signal (1-min Data Feed)")
+
+col1, col2 = st.columns(2)
+with col1:
+    ticker = st.selectbox("Choose Ticker (ETF Proxy)", ["SPY", "QQQ", "DIA", "IWM"])
+with col2:
+    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+
+if st.button("🔍 Get Live Signal"):
     if model is None:
         st.error("⚠️ Train or load a model before using live signals.")
     elif not api_key:
         st.warning("Please enter your API key.")
     else:
-        live_row = fetch_latest_data(symbol="SPY", api_key=api_key)
+        live_row = fetch_latest_data(symbol=ticker, api_key=api_key)
         if "error" in live_row:
             st.error(f"API Error: {live_row['error']}")
         else:
@@ -80,12 +88,17 @@ if st.button("Get Live Signal"):
             pred = model.predict(live_input)[0]
             proba = model.predict_proba(live_input)[0]
             confidence = round(100 * max(proba), 2)
+
+            st.markdown("---")
+            st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{live_row['datetime']}`")
+
             if confidence >= threshold:
-                st.metric(label="LIVE Signal", value=pred)
-                st.write(f"📈 Live Price: ${live_row['close']}")
-                st.write(f"🧠 Confidence: **{confidence}%**")
+                st.metric(label="Signal", value=pred)
+                st.metric(label="Live Price", value=f"${live_row['close']:.2f}")
+                st.metric(label="Confidence", value=f"{confidence}%")
             else:
-                st.warning(f"No signal. Confidence too low ({confidence}%)")
+                st.warning(f"🧠 No signal. Confidence too low ({confidence}%)")
+
 
 # Backtest summary
 st.write("### 📈 Backtest Strategy Results")
