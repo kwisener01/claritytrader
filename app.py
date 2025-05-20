@@ -104,6 +104,13 @@ if st.button("🔍 Get Live Signal"):
                 st.warning(f"🧠 No signal. Confidence too low ({confidence}%)")
 
 
+
+st.write("### ⏱ Backtest Time Window")
+start_idx = st.number_input("Start Row", min_value=0, max_value=len(df)-2, value=0)
+end_idx = st.number_input("End Row", min_value=start_idx+1, max_value=len(df), value=len(df))
+
+df_window = df.iloc[int(start_idx):int(end_idx)]
+
 # Backtest summary
 st.write("### 📈 Backtest Strategy Results")
 backtest_results = run_backtest(df)
