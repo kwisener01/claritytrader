@@ -103,6 +103,37 @@ if st.button("🔍 Get Live Signal"):
             else:
                 st.warning(f"🧠 No signal. Confidence too low ({confidence}%)")
 
+with st.expander("🧾 ClarityTrader Market Open Checklist", expanded=False):
+    st.markdown("### 1. 🔧 Pre-Market Prep (8:30–9:25 AM ET)")
+    st.markdown("- [ ] Open ClarityTrader in your browser")
+    st.markdown("- [ ] Enter Twelve Data API key")
+    st.markdown("- [ ] Upload new training data (optional)")
+    st.markdown("- [ ] Retrain model with 🛠️ button (if needed)")
+    st.markdown("- [ ] Set confidence threshold (e.g. 70–85%)")
+    st.markdown("- [ ] Enable Bayesian Forecasting (optional)")
+
+    st.markdown("### 2. ⏱ Market Open (9:30 AM ET)")
+    st.markdown("- [ ] Wait for first 1-min candle (9:30)")
+    st.markdown("- [ ] Click 🔍 Get Live Signal")
+    st.markdown("- [ ] Optionally turn on auto-refresh")
+    st.markdown("- [ ] Review:")
+    st.markdown("   - ✅ Signal (Buy/Sell/Hold)\n   - ✅ Confidence %\n   - ✅ Price (rounded)\n   - ✅ Timestamp")
+
+    st.markdown("### 3. 🧪 Execution Plan")
+    st.markdown("- [ ] Trade only signals > threshold")
+    st.markdown("- [ ] Log trades (manual or auto-logger)")
+    st.markdown("- [ ] Skip low-confidence or unclear trades")
+    st.markdown("- [ ] Stay emotion-free: follow logic")
+
+    st.markdown("### 4. 📈 Post-Session (12:00 or 4:00 PM)")
+    st.markdown("- [ ] Backtest with adjustable time window")
+    st.markdown("- [ ] Review win rate + notes")
+    st.markdown("- [ ] Save model if needed")
+
+    st.markdown("### ✨ Daily Habits")
+    st.markdown("- [ ] Count signals followed vs skipped")
+    st.markdown("- [ ] Note emotional overrides")
+    st.markdown("- [ ] Aim for consistency, not perfection")
 
 
 st.write("### ⏱ Backtest Time Window")
