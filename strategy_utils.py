@@ -12,16 +12,30 @@ def generate_signal(row):
 
 def run_backtest(df):
     signals = []
-    for _, row in df.iterrows():
-        signals.append(generate_signal(row))
+    correct_predictions = 0
+    total_trades = 0
+
+    for i, row in df.iterrows():
+        signal = generate_signal(row)
+        signals.append(signal)
+        if "Label" in df.columns:
+            if signal == row["Label"] and signal != "Hold":
+                correct_predictions += 1
+            if signal != "Hold":
+                total_trades += 1
+
     df["Signal"] = signals
     buys = df[df["Signal"] == "Buy"]
     sells = df[df["Signal"] == "Sell"]
+    win_rate = (correct_predictions / total_trades * 100) if total_trades > 0 else 0
+
     return {
         "Total Signals": len(df),
         "Buy Signals": len(buys),
         "Sell Signals": len(sells),
-        "Hold Signals": len(df) - len(buys) - len(sells)
+        "Hold Signals": len(df) - len(buys) - len(sells),
+        "Backtest Range": f"{df.index.min()} to {df.index.max()}",
+        "Win Rate (%)": round(win_rate, 2)
     }
 
 def train_model(df, apply_bayesian=False):
