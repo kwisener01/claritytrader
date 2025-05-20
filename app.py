@@ -57,9 +57,9 @@ else:
     pred = generate_signal(row)
     st.metric(label="Predicted Signal (Rule-Based)", value=pred)
 
-# Live Signal from SPY using Twelve Data
-st.write("### 📡 Live Signal (SPY via Twelve Data)")
-api_key = st.text_input("🔑 Enter your Twelve Data API Key", type="password")
+## Live Signal from SPY using Twelve Data
+#st.write("### 📡 Live Signal (SPY via Twelve Data)")
+#api_key = st.text_input("🔑 Enter your Twelve Data API Key", type="password")
 
 st.write("### 📡 Live Signal (1-min Data Feed)")
 
