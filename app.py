@@ -78,7 +78,7 @@ import time
 st.markdown("### 🔁 Auto Refresh Settings")
 
 auto_refresh = st.checkbox("Enable Auto Refresh", value=False)
-refresh_interval = st.number_input("Refresh Interval (seconds)", min_value=5, max_value=60, value=30, step=5)
+refresh_interval = st.number_input("Refresh Interval (seconds)", min_value=5, max_value=60, value=60, step=5)
 
 # Define market hours (Eastern Time)
 eastern = pytz.timezone("US/Eastern")
