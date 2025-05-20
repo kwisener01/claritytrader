@@ -14,10 +14,10 @@ if uploaded_file:
 else:
     df = pd.read_csv("spy_training_data.csv")
 
-st.write("### 📊 Preview Data", df.head())
-
 # Confidence threshold control
 threshold = st.slider("🎯 Confidence Threshold (%)", min_value=50, max_value=100, value=70, step=1)
+
+st.write("### 📊 Preview Data", df.head())
 
 # Bayesian option
 apply_bayes = st.checkbox("Use Bayesian Forecasting", value=True)
