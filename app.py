@@ -19,6 +19,14 @@ apply_bayes = st.checkbox("Use Bayesian Forecasting", value=True)
 if apply_bayes:
     bayesian_update_user()
 
+
+if 'model' not in locals():
+    try:
+        model = pickle.load(open("model.pkl", "rb"))
+    except:
+        model = None
+
+
 if st.button("📡 Get Live Signal"):
     live_row = fetch_latest_data(symbol="SPY", api_key="7c53601780c14ef5a6893e0d522e2388")
     if "error" in live_row:
