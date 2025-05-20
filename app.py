@@ -290,6 +290,6 @@ df_window = df.iloc[int(start_idx):int(end_idx)]
 
 # Backtest summary
 st.write("### 📈 Backtest Strategy Results")
-backtest_results = run_backtest(df_window)  ✅
+backtest_results = run_backtest(df_window) # ✅
 st.write(backtest_results)
 
