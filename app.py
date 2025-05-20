@@ -4,8 +4,11 @@ import pickle
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
 from live_data import fetch_latest_data
 
+# ✅ This must come right after imports, before any Streamlit UI
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
+
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
+
 
 # Upload data or load default training set
 uploaded_file = st.file_uploader("📤 Upload CSV or use example data", type=["csv"])
