@@ -1,8 +1,12 @@
+
 import streamlit as st
 import pandas as pd
 import pickle
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
 from live_data import fetch_latest_data
+import datetime
+import pytz
+import time
 
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
@@ -14,22 +18,17 @@ if uploaded_file:
 else:
     df = pd.read_csv("spy_training_data.csv")
 
-
-
-st.write("### 📡 Live Signal (1-min Data Feed)")
-
-col1, col2 = st.columns(2)
-with col1:
-    ticker = st.selectbox("Choose Ticker (ETF Proxy)", ["SPY", "QQQ", "DIA", "IWM"])
-with col2:
-    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
-
-
+# Backtest Time Range
+st.write("### ⏱ Backtest Time Window")
+start_idx = st.number_input("Start Row", min_value=0, max_value=len(df)-2, value=0)
+end_idx = st.number_input("End Row", min_value=start_idx+1, max_value=len(df), value=len(df))
+df_window = df.iloc[int(start_idx):int(end_idx)]
 
 # Confidence threshold control
 threshold = st.slider("🎯 Confidence Threshold (%)", min_value=50, max_value=100, value=70, step=1)
 
-st.write("### 📊 Preview Data", df.head())
+st.write("### 📊 Preview Data")
+st.dataframe(df_window.head())
 
 # Bayesian option
 apply_bayes = st.checkbox("Use Bayesian Forecasting", value=True)
@@ -69,25 +68,17 @@ else:
     pred = generate_signal(row)
     st.metric(label="Predicted Signal (Rule-Based)", value=pred)
 
-
-
-import datetime
-import pytz
-import time
-
+# Auto Refresh Controls
 st.markdown("### 🔁 Auto Refresh Settings")
-
 auto_refresh = st.checkbox("Enable Auto Refresh", value=False)
 refresh_interval = st.number_input("Refresh Interval (seconds)", min_value=5, max_value=60, value=60, step=5)
 
-# Define market hours (Eastern Time)
 eastern = pytz.timezone("US/Eastern")
 now_et = datetime.datetime.now(eastern)
 market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
 market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
-
 market_hours = market_open <= now_et <= market_close
-weekday = now_et.weekday() < 5  # Mon–Fri = 0–4
+weekday = now_et.weekday() < 5
 
 if auto_refresh and market_hours and weekday:
     st.info(f"🔁 Refreshing every {refresh_interval} seconds during market hours")
@@ -96,12 +87,13 @@ if auto_refresh and market_hours and weekday:
 elif auto_refresh:
     st.warning("⏹ Auto-refresh is paused — market is closed.")
 
-
-
-
-## Live Signal from SPY using Twelve Data
-#st.write("### 📡 Live Signal (SPY via Twelve Data)")
-#api_key = st.text_input("🔑 Enter your Twelve Data API Key", type="password")
+# Live Signal
+st.write("### 📡 Live Signal (1-min Data Feed)")
+col1, col2 = st.columns(2)
+with col1:
+    ticker = st.selectbox("Choose Ticker (ETF Proxy)", ["SPY", "QQQ", "DIA", "IWM"])
+with col2:
+    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
 if st.button("🔍 Get Live Signal"):
     if model is None:
@@ -122,10 +114,9 @@ if st.button("🔍 Get Live Signal"):
             pred = model.predict(live_input)[0]
             proba = model.predict_proba(live_input)[0]
             confidence = round(100 * max(proba), 2)
-
             st.markdown("---")
-            st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{live_row['datetime']}`")
-
+            st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  
+🕒 Timestamp: `{live_row['datetime']}`")
             if confidence >= threshold:
                 st.metric(label="Signal", value=pred)
                 st.metric(label="Live Price", value=f"${live_row['close']:.2f}")
@@ -133,6 +124,7 @@ if st.button("🔍 Get Live Signal"):
             else:
                 st.warning(f"🧠 No signal. Confidence too low ({confidence}%)")
 
+# Market Checklist
 with st.expander("🧾 ClarityTrader Market Open Checklist", expanded=False):
     st.markdown("### 1. 🔧 Pre-Market Prep (8:30–9:25 AM ET)")
     st.markdown("- [ ] Open ClarityTrader in your browser")
@@ -146,8 +138,11 @@ with st.expander("🧾 ClarityTrader Market Open Checklist", expanded=False):
     st.markdown("- [ ] Wait for first 1-min candle (9:30)")
     st.markdown("- [ ] Click 🔍 Get Live Signal")
     st.markdown("- [ ] Optionally turn on auto-refresh")
-    st.markdown("- [ ] Review:")
-    st.markdown("   - ✅ Signal (Buy/Sell/Hold)\n   - ✅ Confidence %\n   - ✅ Price (rounded)\n   - ✅ Timestamp")
+    st.markdown("- [ ] Review:
+   - ✅ Signal (Buy/Sell/Hold)
+   - ✅ Confidence %
+   - ✅ Price
+   - ✅ Timestamp")
 
     st.markdown("### 3. 🧪 Execution Plan")
     st.markdown("- [ ] Trade only signals > threshold")
@@ -165,15 +160,7 @@ with st.expander("🧾 ClarityTrader Market Open Checklist", expanded=False):
     st.markdown("- [ ] Note emotional overrides")
     st.markdown("- [ ] Aim for consistency, not perfection")
 
-
-st.write("### ⏱ Backtest Time Window")
-start_idx = st.number_input("Start Row", min_value=0, max_value=len(df)-2, value=0)
-end_idx = st.number_input("End Row", min_value=start_idx+1, max_value=len(df), value=len(df))
-
-df_window = df.iloc[int(start_idx):int(end_idx)]
-
-# Backtest summary
+# Backtest Results
 st.write("### 📈 Backtest Strategy Results")
-backtest_results = run_backtest(df_window) # ✅
+backtest_results = run_backtest(df_window)
 st.write(backtest_results)
-
