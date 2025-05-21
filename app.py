@@ -19,18 +19,26 @@ if uploaded_file:
 else:
     df = pd.read_csv("spy_training_data.csv")
 
+# Convert datetime if it exists
+if 'datetime' in df.columns:
+    df['datetime'] = pd.to_datetime(df['datetime'])
+
 # Time slice for preview + training
 st.write("### ⏱ Backtest Time Window")
 start_idx = st.number_input("Start Row", min_value=0, max_value=len(df)-2, value=0)
 end_idx = st.number_input("End Row", min_value=start_idx+1, max_value=len(df), value=len(df))
 df_window = df.iloc[int(start_idx):int(end_idx)]
 
+# Show datetime range if available
+if 'datetime' in df.columns:
+    st.write(f"📅 Backtest Date Range: {df_window.iloc[0]['datetime']} → {df_window.iloc[-1]['datetime']}")
+
 # Use slice for training?
 use_slice = st.checkbox("Train model on selected range only", value=False)
 training_data = df_window if use_slice else df
 
 # Show only relevant preview
-st.write("### 📊 Preview Data (Based on Backtest Window)")
+st.write("### 📊 Preview Data (From Backtest Window)")
 st.dataframe(df_window.head())
 
 # Confidence slider
