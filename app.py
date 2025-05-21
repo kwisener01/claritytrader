@@ -120,8 +120,7 @@ if api_key and model:
         confidence = round(100 * max(proba), 2)
 
         st.markdown("---")
-        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  
-🕒 Timestamp: `{live_row['datetime']}`")
+        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{live_row['datetime']}`")
         st.metric(label="Signal", value=pred)
         st.metric(label="Live Price", value=f"${live_row['close']:.2f}")
         st.metric(label="Confidence", value=f"{confidence}%")
