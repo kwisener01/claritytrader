@@ -9,7 +9,6 @@ import pytz
 
 # Set page config first
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
-
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 
 # Upload CSV or load default
@@ -81,9 +80,10 @@ else:
     pred = generate_signal(row)
     st.metric(label="Predicted Signal (Rule-Based)", value=pred)
 
-# Auto refresh
+# Auto refresh section
 st.write("### 🔁 Auto Refresh Settings")
 enable_refresh = st.checkbox("Enable Auto Refresh During Market Hours", value=True)
+refresh_interval = st.slider("Set Refresh Interval (seconds)", min_value=15, max_value=120, value=60, step=15)
 
 # Market check
 eastern = pytz.timezone("US/Eastern")
@@ -94,7 +94,7 @@ in_market = market_open <= now_et <= market_close and now_et.weekday() < 5
 
 if enable_refresh and in_market:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=60000, key="auto-refresh")  # 60 seconds
+    st_autorefresh(interval=refresh_interval * 1000, key="auto-refresh")
 
 # Live signal section
 st.write("### 📡 Live Signal (1-min Data Feed)")
