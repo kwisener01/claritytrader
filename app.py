@@ -5,6 +5,7 @@ import pickle
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
 from live_data import fetch_latest_data
 from signal_log import log_signal
+from trade_journal import log_journal
 import datetime
 import pytz
 import os
@@ -120,35 +121,29 @@ if api_key and model:
         if confidence >= threshold:
             log_signal(ticker, pred, confidence, price, timestamp)
 
+            with st.form(key="journal_form"):
+                st.subheader("📝 Log Trade Journal Entry")
+                reason = st.text_input("🧠 Why did you take this trade?")
+                emotion = st.selectbox("😐 Emotion before/after trade", ["Neutral", "Confident", "Anxious", "Fearful", "Greedy"])
+                reflection = st.text_area("📓 Trade outcome / reflection")
+                file = st.file_uploader("📎 Upload Screenshot (optional)", type=["png", "jpg", "jpeg"])
+
+                submit = st.form_submit_button("Save Journal Entry")
+                if submit:
+                    filename = file.name if file else None
+                    log_journal(timestamp, ticker, pred, reason, emotion, reflection, filename)
+                    if file:
+                        with open(os.path.join("uploads", file.name), "wb") as f:
+                            f.write(file.read())
+                    st.success("✅ Journal entry saved!")
+
 st.write("### 📈 Backtest Strategy Results")
 results = run_backtest(df_window)
 st.write(results)
 
-st.write("### 🗂 Signal Log (Label and Stats)")
-if os.path.exists("signal_log.csv"):
-    logs = pd.read_csv("signal_log.csv")
-    logs['Timestamp'] = pd.to_datetime(logs['Timestamp'])
-    logs['Hour'] = logs['Timestamp'].dt.hour
-
-    st.write("#### 🧮 Add Labels (Win/Loss)")
-    for i in logs.tail(5).index:
-        logs.at[i, 'Label'] = st.selectbox(f"Result for {logs.loc[i, 'Timestamp']} – {logs.loc[i, 'Signal']}", ["", "Win", "Loss"], key=i)
-
-    logs.to_csv("signal_log.csv", index=False)
-
-    st.write("#### 📊 Buy/Sell Distribution")
-    st.bar_chart(logs['Signal'].value_counts())
-
-    st.write("#### 📊 Win vs Loss Breakdown")
-    if 'Label' in logs.columns:
-        st.bar_chart(logs['Label'].value_counts())
-
-    st.write("#### ⏱ Signals by Hour")
-    st.bar_chart(logs.groupby('Hour').size())
-
-    if 'Confidence' in logs.columns:
-        st.write("#### 📊 Avg Confidence by Signal")
-        st.bar_chart(logs.groupby('Signal')['Confidence'].mean())
-
+st.write("### 📚 Recent Trade Journal Entries")
+if os.path.exists("trade_journal.csv"):
+    journal_df = pd.read_csv("trade_journal.csv")
+    st.dataframe(journal_df.tail(5))
 else:
-    st.info("No signal log found yet.")
+    st.info("No journal entries yet.")
