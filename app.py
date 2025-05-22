@@ -150,18 +150,18 @@ else:
 
 from send_slack_alert import send_slack_alert
 
-# Add Slack webhook input below API key input
-slack_webhook = st.text_input("https://hooks.slack.com/services/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", type="password")
-enable_slack = st.checkbox("📣 Send Slack Alerts", value=True)
-already_in_trade = True  # Placeholder until state tracking is added
+from send_slack_alert import send_slack_alert
 
-#Slack channel webhook test
+slack_webhook = st.text_input("🔗 Enter Slack Webhook URL", type="password")
+enable_slack = st.checkbox("📣 Send Slack Alerts", value=True)
+already_in_trade = True  # Placeholder
+
 if st.button("🧪 Send Test Slack Alert"):
     if slack_webhook:
         send_slack_alert(slack_webhook, "SPY", "Buy", 95.0, 522.15, str(datetime.datetime.now()))
         st.success("✅ Test Slack alert sent!")
     else:
-        st.warning("Please enter a valid Slack Webhook URL.")
+        st.warning("⚠️ Please enter a valid Slack Webhook URL.")
 
 
 # Modify Live Signal trigger
