@@ -4,8 +4,10 @@ import pandas as pd
 import pickle
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
 from live_data import fetch_latest_data
+from signal_log import log_signal
 import datetime
 import pytz
+import os
 
 # Set page config first
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
@@ -119,11 +121,17 @@ if api_key and model:
         proba = model.predict_proba(live_input)[0]
         confidence = round(100 * max(proba), 2)
 
+        timestamp = live_row["datetime"]
+        price = round(live_row["close"], 2)
+
         st.markdown("---")
-        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{live_row['datetime']}`")
+        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{timestamp}`")
         st.metric(label="Signal", value=pred)
-        st.metric(label="Live Price", value=f"${live_row['close']:.2f}")
+        st.metric(label="Live Price", value=f"${price}")
         st.metric(label="Confidence", value=f"{confidence}%")
+
+        if confidence >= threshold:
+            log_signal(ticker, pred, confidence, price, timestamp)
 
 # Checklist
 with st.expander("🧾 ClarityTrader Market Open Checklist", expanded=False):
@@ -152,3 +160,11 @@ with st.expander("🧾 ClarityTrader Market Open Checklist", expanded=False):
 st.write("### 📈 Backtest Strategy Results")
 results = run_backtest(df_window)
 st.write(results)
+
+# Display recent logs
+st.write("### 🗂 Signal Log (Recent Entries)")
+if os.path.exists("signal_log.csv"):
+    logs = pd.read_csv("signal_log.csv")
+    st.dataframe(logs.tail(10))
+else:
+    st.info("No signal log found yet.")
