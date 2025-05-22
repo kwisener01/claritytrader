@@ -151,7 +151,7 @@ else:
 from send_slack_alert import send_slack_alert
 
 # Add Slack webhook input below API key input
-slack_webhook = st.text_input("🔗 Slack Webhook URL", type="password")
+slack_webhook = st.text_input("https://hooks.slack.com/services/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", type="password")
 enable_slack = st.checkbox("📣 Send Slack Alerts", value=True)
 already_in_trade = True  # Placeholder until state tracking is added
 
