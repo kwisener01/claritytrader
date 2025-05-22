@@ -147,3 +147,30 @@ if os.path.exists("trade_journal.csv"):
     st.dataframe(journal_df.tail(5))
 else:
     st.info("No journal entries yet.")
+
+
+
+# Snippet only: Add after backtest window section in your app
+
+# 📈 Backtest Refresh Section
+st.write("### 📈 Backtest Strategy Results")
+
+# Add Refresh Option Toggle
+auto_backtest = st.checkbox("⏱ Auto-refresh backtest every minute (market hours only)", value=False)
+refresh_backtest = st.button("🔄 Refresh Backtest Now")
+
+# Market time check
+eastern = pytz.timezone("US/Eastern")
+now_et = datetime.datetime.now(eastern)
+market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+market_hours = market_open <= now_et <= market_close and now_et.weekday() < 5
+
+# Auto-refresh backtest logic
+run_backtest_now = refresh_backtest or (auto_backtest and market_hours)
+
+if run_backtest_now:
+    results = run_backtest(df_window)
+    st.write(results)
+else:
+    st.info("Click the button or enable auto-refresh during market hours to see updated results.")
