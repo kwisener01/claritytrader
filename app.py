@@ -148,29 +148,57 @@ if os.path.exists("trade_journal.csv"):
 else:
     st.info("No journal entries yet.")
 
+from send_slack_alert import send_slack_alert
 
+# Add Slack webhook input below API key input
+slack_webhook = st.text_input("🔗 Slack Webhook URL", type="password")
+enable_slack = st.checkbox("📣 Send Slack Alerts", value=True)
+already_in_trade = True  # Placeholder until state tracking is added
 
-# Snippet only: Add after backtest window section in your app
+# Modify Live Signal trigger
+if api_key and model:
+    live_row = fetch_latest_data(symbol=ticker, api_key=api_key)
+    if "error" in live_row:
+        st.error(f"API Error: {live_row['error']}")
+    else:
+        live_input = pd.DataFrame([{
+            "RSI": live_row["RSI"],
+            "Momentum": live_row["Momentum"],
+            "ATR": live_row["ATR"],
+            "Volume": live_row["Volume"]
+        }])
+        pred = model.predict(live_input)[0]
+        proba = model.predict_proba(live_input)[0]
+        confidence = round(100 * max(proba), 2)
 
-# 📈 Backtest Refresh Section
-st.write("### 📈 Backtest Strategy Results")
+        timestamp = live_row["datetime"]
+        price = round(live_row["close"], 2)
+        hour = pd.to_datetime(timestamp).hour
 
-# Add Refresh Option Toggle
-auto_backtest = st.checkbox("⏱ Auto-refresh backtest every minute (market hours only)", value=False)
-refresh_backtest = st.button("🔄 Refresh Backtest Now")
+        st.markdown("---")
+        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{timestamp}`")
+        st.metric(label="Signal", value=pred)
+        st.metric(label="Live Price", value=f"${price}")
+        st.metric(label="Confidence", value=f"{confidence}%")
 
-# Market time check
-eastern = pytz.timezone("US/Eastern")
-now_et = datetime.datetime.now(eastern)
-market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
-market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
-market_hours = market_open <= now_et <= market_close and now_et.weekday() < 5
+        if confidence >= threshold:
+            log_signal(ticker, pred, confidence, price, timestamp)
 
-# Auto-refresh backtest logic
-run_backtest_now = refresh_backtest or (auto_backtest and market_hours)
+            if enable_slack and slack_webhook and (pred in ["Buy", "Sell"] or (pred == "Hold" and already_in_trade)):
+                send_slack_alert(slack_webhook, ticker, pred, confidence, price, timestamp)
 
-if run_backtest_now:
-    results = run_backtest(df_window)
-    st.write(results)
-else:
-    st.info("Click the button or enable auto-refresh during market hours to see updated results.")
+            with st.form(key="journal_form"):
+                st.subheader("📝 Log Trade Journal Entry")
+                reason = st.text_input("🧠 Why did you take this trade?")
+                emotion = st.selectbox("😐 Emotion before/after trade", ["Neutral", "Confident", "Anxious", "Fearful", "Greedy"])
+                reflection = st.text_area("📓 Trade outcome / reflection")
+                file = st.file_uploader("📎 Upload Screenshot (optional)", type=["png", "jpg", "jpeg"])
+
+                submit = st.form_submit_button("Save Journal Entry")
+                if submit:
+                    filename = file.name if file else None
+                    log_journal(timestamp, ticker, pred, reason, emotion, reflection, filename)
+                    if file:
+                        with open(os.path.join("uploads", file.name), "wb") as f:
+                            f.write(file.read())
+                    st.success("✅ Journal entry saved!")
