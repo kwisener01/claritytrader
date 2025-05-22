@@ -155,6 +155,15 @@ slack_webhook = st.text_input("https://hooks.slack.com/services/T08TE5V45K7/B08T
 enable_slack = st.checkbox("📣 Send Slack Alerts", value=True)
 already_in_trade = True  # Placeholder until state tracking is added
 
+#Slack channel webhook test
+if st.button("🧪 Send Test Slack Alert"):
+    if slack_webhook:
+        send_slack_alert(slack_webhook, "SPY", "Buy", 95.0, 522.15, str(datetime.datetime.now()))
+        st.success("✅ Test Slack alert sent!")
+    else:
+        st.warning("Please enter a valid Slack Webhook URL.")
+
+
 # Modify Live Signal trigger
 if api_key and model:
     live_row = fetch_latest_data(symbol=ticker, api_key=api_key)
