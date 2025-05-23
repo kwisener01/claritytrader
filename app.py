@@ -176,3 +176,21 @@ if os.path.exists("trade_journal.csv"):
     st.dataframe(journal_df.tail(5))
 else:
     st.info("No journal entries yet.")
+
+# Signal History Viewer
+st.write("### 🕒 Daily Signal History Viewer")
+if not os.path.exists("signal_log.csv"):
+    with open("signal_log.csv", "w") as f:
+        f.write("datetime,ticker,signal,confidence,price\n")
+
+log_df = pd.read_csv("signal_log.csv")
+log_df['datetime'] = pd.to_datetime(log_df['datetime'])
+log_df['date'] = log_df['datetime'].dt.date
+
+selected_date = st.date_input("Select date to view signal history", value=datetime.datetime.now().date())
+daily_signals = log_df[log_df['date'] == selected_date]
+
+if daily_signals.empty:
+    st.info("No signals recorded for this date.")
+else:
+    st.dataframe(daily_signals[['datetime', 'ticker', 'signal', 'confidence', 'price']].sort_values(by='datetime'))
