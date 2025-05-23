@@ -26,15 +26,18 @@ else:
 
 if 'datetime' in df.columns:
     df['datetime'] = pd.to_datetime(df['datetime'])
+    min_date = df['datetime'].min().date()
+    max_date = df['datetime'].max().date()
 
-# Backtest Window
-st.write("### ⏱ Backtest Time Window")
-start_idx = st.number_input("Start Row", min_value=0, max_value=len(df)-2, value=0)
-end_idx = st.number_input("End Row", min_value=start_idx+1, max_value=len(df), value=len(df))
-df_window = df.iloc[int(start_idx):int(end_idx)]
+    st.write("### ⏱ Backtest Date Range Selector")
+    start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+    end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
 
-if 'datetime' in df.columns:
+    df_window = df[df['datetime'].between(pd.to_datetime(start_date), pd.to_datetime(end_date))]
     st.write(f"📅 Backtest Date Range: {df_window.iloc[0]['datetime']} → {df_window.iloc[-1]['datetime']}")
+else:
+    st.warning("No datetime column found. Defaulting to full dataset.")
+    df_window = df
 
 # Training set
 use_slice = st.checkbox("Train model on selected range only", value=False)
@@ -125,12 +128,7 @@ if api_key and model:
     if "error" in live_row:
         st.error(f"API Error: {live_row['error']}")
     else:
-        live_input = pd.DataFrame([{
-            "RSI": live_row["RSI"],
-            "Momentum": live_row["Momentum"],
-            "ATR": live_row["ATR"],
-            "Volume": live_row["Volume"]
-        }])
+        live_input = pd.DataFrame([{key: live_row[key] for key in ["RSI", "Momentum", "ATR", "Volume"] if key in live_row}])
         pred = model.predict(live_input)[0]
         proba = model.predict_proba(live_input)[0]
         confidence = round(100 * max(proba), 2)
@@ -139,7 +137,7 @@ if api_key and model:
         price = round(live_row["close"], 2)
 
         st.markdown("---")
-        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \\n🕒 Timestamp: `{timestamp}`")
+        st.markdown(f"🧠 **LIVE SIGNAL for {ticker}**  \n🕒 Timestamp: `{timestamp}`")
         st.metric(label="Signal", value=pred)
         st.metric(label="Live Price", value=f"${price}")
         st.metric(label="Confidence", value=f"{confidence}%")
