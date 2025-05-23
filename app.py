@@ -34,7 +34,11 @@ if 'datetime' in df.columns:
     end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
 
     df_window = df[df['datetime'].between(pd.to_datetime(start_date), pd.to_datetime(end_date))]
-    st.write(f"📅 Backtest Date Range: {df_window.iloc[0]['datetime']} → {df_window.iloc[-1]['datetime']}")
+    if not df_window.empty:
+        st.write(f"📅 Backtest Date Range: {df_window.iloc[0]['datetime']} → {df_window.iloc[-1]['datetime']}")
+    else:
+        st.warning("Selected date range has no data.")
+        df_window = df
 else:
     st.warning("No datetime column found. Defaulting to full dataset.")
     df_window = df
@@ -184,13 +188,16 @@ if not os.path.exists("signal_log.csv"):
         f.write("datetime,ticker,signal,confidence,price\n")
 
 log_df = pd.read_csv("signal_log.csv")
-log_df['datetime'] = pd.to_datetime(log_df['datetime'])
-log_df['date'] = log_df['datetime'].dt.date
+if 'datetime' in log_df.columns:
+    log_df['datetime'] = pd.to_datetime(log_df['datetime'])
+    log_df['date'] = log_df['datetime'].dt.date
 
-selected_date = st.date_input("Select date to view signal history", value=datetime.datetime.now().date())
-daily_signals = log_df[log_df['date'] == selected_date]
+    selected_date = st.date_input("Select date to view signal history", value=datetime.datetime.now().date())
+    daily_signals = log_df[log_df['date'] == selected_date]
 
-if daily_signals.empty:
-    st.info("No signals recorded for this date.")
+    if daily_signals.empty:
+        st.info("No signals recorded for this date.")
+    else:
+        st.dataframe(daily_signals[['datetime', 'ticker', 'signal', 'confidence', 'price']].sort_values(by='datetime'))
 else:
-    st.dataframe(daily_signals[['datetime', 'ticker', 'signal', 'confidence', 'price']].sort_values(by='datetime'))
+    st.warning("⚠️ 'datetime' column missing in signal_log.csv")
