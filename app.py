@@ -18,7 +18,7 @@ st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 
 # File uploader
-uploaded_file = st.file_uploader("📄 Upload CSV or use example data", type=["csv"])
+uploaded_file = st.file_uploader("📤 Upload CSV or use example data", type=["csv"])
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
 else:
@@ -70,7 +70,7 @@ except:
 st.write("### 🧠 Generate Signal from Latest Row")
 row = df.iloc[-1].drop("Label", errors="ignore").to_dict()
 if model:
-    input_df = pd.DataFrame([row])["RSI", "Momentum", "ATR", "Volume"]
+    input_df = pd.DataFrame([row])[ [col for col in ["RSI", "Momentum", "ATR", "Volume"] if col in row] ]
     pred = model.predict(input_df)[0]
     proba = model.predict_proba(input_df)[0]
     confidence = round(100 * max(proba), 2)
@@ -99,7 +99,7 @@ if enable_refresh and in_market:
     st_autorefresh(interval=refresh_interval * 1000, key="auto-refresh")
 
 # Live Signal
-st.write("### 📱 Live Signal (1-min Data Feed)")
+st.write("### 📡 Live Signal (1-min Data Feed)")
 col1, col2 = st.columns(2)
 with col1:
     ticker = st.selectbox("Choose Ticker (ETF Proxy)", ["SPY", "QQQ", "DIA", "IWM"])
