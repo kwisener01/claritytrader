@@ -183,11 +183,12 @@ else:
 
 # Signal History Viewer
 st.write("### 🕒 Daily Signal History Viewer")
-if not os.path.exists("signal_log.csv"):
-    with open("signal_log.csv", "w") as f:
+signal_log_path = "signal_log.csv"
+if not os.path.exists(signal_log_path) or os.path.getsize(signal_log_path) == 0:
+    with open(signal_log_path, "w") as f:
         f.write("datetime,ticker,signal,confidence,price\n")
 
-log_df = pd.read_csv("signal_log.csv")
+log_df = pd.read_csv(signal_log_path)
 if 'datetime' in log_df.columns:
     log_df['datetime'] = pd.to_datetime(log_df['datetime'])
     log_df['date'] = log_df['datetime'].dt.date
