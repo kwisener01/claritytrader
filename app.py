@@ -88,7 +88,7 @@ if source == "Yahoo Finance (Historical)":
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
 
         st.write("### 📄 Yahoo Finance 1-Minute Data (Latest)")
-        st.dataframe(hist_df.tail(200))
+        st.dataframe(hist_df.tail(2000000))
 
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
