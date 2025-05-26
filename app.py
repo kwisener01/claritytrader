@@ -83,6 +83,9 @@ if source == "Yahoo Finance (Historical)":
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
+        st.write("### 📄 Yahoo Finance 1-Minute Data (Latest)")
+        st.dataframe(hist_df.tail(200))
+
 
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
