@@ -7,20 +7,14 @@ import os
 import io
 
 from live_data import fetch_latest_data
-from strategy_utils import add_custom_features
+from strategy_utils import add_custom_features, generate_signal, run_backtest
 from train_model import train_model
-
+from yahoo_data import fetch_yahoo_intraday
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
-
-from strategy_utils import generate_signal, run_backtest, add_custom_features
-from train_model import train_model
-from live_data import fetch_latest_data
-from send_slack_alert import send_slack_alert
-from yahoo_data import fetch_yahoo_intraday
 
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
@@ -34,7 +28,6 @@ if 'training_data' not in st.session_state:
         except:
             st.session_state.training_data = pd.DataFrame()
 
-
 if 'signal_log' not in st.session_state:
     st.session_state.signal_log = []
 
@@ -47,7 +40,7 @@ source = st.radio("📡 Choose Data Source", ["Twelve Data (Live)", "Yahoo Finan
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
-# ⏱️ Live Auto-Update Model Using Twelve Data
+# 🔄 Live auto-update with Twelve Data
 if source == "Twelve Data (Live)" and api_key:
     try:
         new_row = fetch_latest_data(ticker, api_key=api_key)
@@ -67,8 +60,7 @@ if source == "Twelve Data (Live)" and api_key:
     except Exception as e:
         st.warning(f"⚠️ Could not update model: {e}")
 
-
-
+# 📈 Load and train from Yahoo historical
 if source == "Yahoo Finance (Historical)":
     period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
@@ -96,7 +88,8 @@ if source == "Yahoo Finance (Historical)":
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
-# Train model immediately using Yahoo data
+
+        # Safe model training block
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
             full_data = full_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike", "Label"])
@@ -109,14 +102,7 @@ if source == "Yahoo Finance (Historical)":
         except Exception as e:
             st.warning(f"⚠️ Could not train model from Yahoo data: {e}")
 
-
-        timestamp = str(datetime.datetime.now())
-        price = hist_df["Close"].iloc[-1] if not hist_df["Close"].empty else 0
-        st.session_state.training_data.to_csv("training_data.csv", index=False)
-
-        
-
-# Training
+# 📊 Training and analysis
 st.write("### 📊 Label Distribution")
 st.bar_chart(st.session_state.training_data["Label"].value_counts())
 
@@ -130,6 +116,7 @@ if not data.empty:
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
     model = train_model(pd.concat([X_train, y_train], axis=1))
+    st.session_state.model = model
     st.success("✅ Model trained")
 
     st.write("### 🧪 Backtest")
@@ -151,5 +138,20 @@ if not data.empty:
         for j in range(2):
             ax.text(j, i, conf_matrix[i, j], ha="center", va="center", color="white" if conf_matrix[i, j] > 0 else "black")
     st.pyplot(fig, clear_figure=True)
+
+    # ✅ Signal from latest row
+    st.write("### 🔔 Signal for Latest Price")
+    try:
+        latest = data[features].iloc[-1:]
+        price = st.session_state.training_data["Close"].iloc[-1]
+        pred = model.predict(latest)[0]
+        proba = model.predict_proba(latest)[0]
+        confidence = round(100 * max(proba), 2)
+
+        st.metric("📈 Latest Price", f"${price:.2f}")
+        st.metric("📊 Signal", pred)
+        st.metric("📉 Confidence", f"{confidence}%")
+    except Exception as e:
+        st.warning(f"⚠️ Could not generate signal: {e}")
 else:
     st.warning("⚠️ Not enough data to train.")
