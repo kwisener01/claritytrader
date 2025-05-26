@@ -50,6 +50,18 @@ if source == "Twelve Data (Live)" and api_key:
         price = 0
 elif source == "Yahoo Finance (Historical)":
     hist_df = fetch_yahoo_intraday(symbol=ticker)
+
+    # Ensure indicators are calculated
+    hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
+    hist_df["H-L"] = hist_df["High"] - hist_df["Low"]
+    hist_df["H-PC"] = abs(hist_df["High"] - hist_df["Close"].shift(1))
+    hist_df["L-PC"] = abs(hist_df["Low"] - hist_df["Close"].shift(1))
+    hist_df["TR"] = hist_df[["H-L", "H-PC", "L-PC"]].max(axis=1)
+    hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
+    hist_df["RSI"] = 100 - (100 / (1 + (hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+                                      (-hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()))))
+    hist_df["Volume"] = 1000000  # Placeholder volume
+    hist_df = hist_df.dropna()
     hist_df["Label"] = "Hold"
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
