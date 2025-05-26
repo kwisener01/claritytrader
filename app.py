@@ -11,7 +11,10 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
-from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user, add_custom_features
+
+from strategy_utils import generate_signal, run_backtest, bayesian_update_user, add_custom_features
+from train_model import train_model
+
 from live_data import fetch_latest_data
 from send_slack_alert import send_slack_alert
 from yahoo_data import fetch_yahoo_intraday
