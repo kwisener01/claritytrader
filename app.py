@@ -89,11 +89,11 @@ if source == "Yahoo Finance (Historical)":
         st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
 
-        # Safe model training block
+      # Train model immediately using Yahoo data
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
             full_data = full_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike", "Label"])
-            if len(full_data) < 50:
+            if len(full_data) < 30:
                 raise ValueError("Not enough usable samples to train model.")
             model = train_model(full_data)
             st.session_state.model = model
@@ -101,6 +101,7 @@ if source == "Yahoo Finance (Historical)":
             st.success("✅ Model trained and saved from Yahoo historical data.")
         except Exception as e:
             st.warning(f"⚠️ Could not train model from Yahoo data: {e}")
+
 
 # 📊 Training and analysis
 st.write("### 📊 Label Distribution")
