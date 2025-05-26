@@ -80,22 +80,19 @@ elif source == "Yahoo Finance (Historical)":
     if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
         hist_df["Volume"] = 1000000  # fallback if volume is missing or flat
     hist_df = hist_df.dropna()
+
     # Ensure all required columns exist before selecting
     required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
     missing_columns = [col for col in required_columns if col not in hist_df.columns]
-    
+
     if missing_columns:
         st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
         for col in missing_columns:
             hist_df[col] = None  # fill missing columns with None
-    
+
     # Reorder columns safely
     ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
-    hist_df = hist_df[ordered_cols]
-
-
-    # Add timestamp and OHLC columns to training dataset
-    hist_df = hist_df[["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"] + list(hist_df.columns.difference(["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]).tolist())]
+    hist_df = hist_df[ordered_cols] + list(hist_df.columns.difference(["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]).tolist())]
     hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
