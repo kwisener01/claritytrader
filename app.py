@@ -26,7 +26,14 @@ st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 
 if 'training_data' not in st.session_state:
-    st.session_state.training_data = pd.read_csv("spy_training_data.csv")
+    try:
+        st.session_state.training_data = pd.read_csv("training_data.csv")
+    except:
+        try:
+            st.session_state.training_data = pd.read_csv("spy_training_data.csv")
+        except:
+            st.session_state.training_data = pd.DataFrame()
+
 
 if 'signal_log' not in st.session_state:
     st.session_state.signal_log = []
