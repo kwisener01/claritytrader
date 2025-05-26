@@ -52,6 +52,9 @@ elif source == "Yahoo Finance (Historical)":
     period = st.selectbox("📆 Yahoo Finance Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
 
+    if hist_df.empty:
+        st.warning("⚠️ No data retrieved from Yahoo Finance. This can happen on weekends, holidays, or if the ticker is invalid. Try a different symbol or time.")
+
     # Ensure indicators are calculated
     hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
     hist_df["H-L"] = hist_df["High"] - hist_df["Low"]
