@@ -95,6 +95,11 @@ if not clean_data.empty:
     pickle.dump(model, buf)
     st.session_state['model'] = buf.getvalue()
     st.success("✅ Model auto-trained")
+
+    # Run auto backtest
+    st.write("### 🔁 Auto Backtest Results")
+    backtest_results = run_backtest(clean_data)
+    st.json(backtest_results)
 else:
     model = None
     st.warning("⚠️ No valid rows available for training.")
