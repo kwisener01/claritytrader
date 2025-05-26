@@ -16,7 +16,7 @@ def run_backtest(df):
     }
     filtered = df[df["Label"].isin(["Buy", "Sell"])]
     if not filtered.empty:
-        result["Win Rate (%)"] = round((filtered["Label"] == filtered["Label"]).mean() * 100, 2)  # dummy pass-through
+        result["Win Rate (%)"] = round((filtered["Label"] == filtered["Label"]).mean() * 100, 2)  # placeholder logic
     else:
         result["Win Rate (%)"] = 0.0
     return result
