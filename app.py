@@ -83,20 +83,18 @@ elif source == "Yahoo Finance (Historical)":
         hist_df["Volume"] = 1000000  # fallback if volume is missing or flat
     hist_df = hist_df.dropna()
 
-    # Ensure all required columns exist before selecting
-    required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
-    missing_columns = [col for col in required_columns if col not in hist_df.columns]
+   # Ensure all required columns exist before selecting
+required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
+missing_columns = [col for col in required_columns if col not in hist_df.columns]
 
-    if missing_columns:
-        st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
-        for col in missing_columns:
-            hist_df[col] = None  # fill missing columns with None
+if missing_columns:
+    st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
+    for col in missing_columns:
+        hist_df[col] = None  # fill missing columns with None
 
-    # Reorder columns safely
-    ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
-    # Ensure all required columns exist before selecting
-    required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
-    missing_columns = [col for col in required_columns if col not in hist_df.columns]
+# Reorder columns safely by ensuring required ones are at the front
+ordered_cols = required_columns + [col for col in hist_df.columns if col not in required_columns]
+hist_df = hist_df[ordered_cols]
 
     if missing_columns:
         st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
