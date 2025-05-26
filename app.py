@@ -104,7 +104,7 @@ if source == "Yahoo Finance (Historical)":
             pickle.dump(model, open("model.pkl", "wb"))
             st.success("✅ Model trained from Yahoo historical data.")
         except Exception as e:
-            st.warning(f"⚠️ Could not train model: {e}")
+            st.warning(f"⚠️ Could not train model dang it: {e}")
 
 
         timestamp = str(datetime.datetime.now())
