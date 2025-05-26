@@ -40,6 +40,28 @@ source = st.radio("📡 Choose Data Source", ["Twelve Data (Live)", "Yahoo Finan
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
+# ⏱️ Live Auto-Update Model Using Twelve Data
+if source == "Twelve Data (Live)" and api_key:
+    try:
+        new_row = fetch_latest_data(ticker, api_key=api_key)
+        if "error" not in new_row:
+            df = pd.concat([st.session_state.training_data, pd.DataFrame([new_row])], ignore_index=True)
+            df = add_custom_features(df).dropna()
+            if len(df) > 30000:
+                df = df[-30000:]
+            model = train_model(df)
+            st.session_state.training_data = df
+            st.session_state.model = model
+            pickle.dump(model, open("model.pkl", "wb"))
+            df.to_csv("training_data.csv", index=False)
+            st.success("✅ Model retrained with live data.")
+        else:
+            st.warning(f"❌ API Error: {new_row['error']}")
+    except Exception as e:
+        st.warning(f"⚠️ Could not update model: {e}")
+
+
+
 if source == "Yahoo Finance (Historical)":
     period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
