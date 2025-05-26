@@ -3,14 +3,17 @@ import pandas as pd
 import numpy as np
 import pickle
 import datetime
+import os
+import io
+
 from live_data import fetch_latest_data
 from strategy_utils import add_custom_features, generate_signal, run_backtest
 from train_model import train_model
 from yahoo_data import fetch_yahoo_intraday
-from send_slack_alert import send_slack_alert
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
@@ -20,7 +23,10 @@ if 'training_data' not in st.session_state:
     try:
         st.session_state.training_data = pd.read_csv("training_data.csv")
     except:
-        st.session_state.training_data = pd.DataFrame()
+        try:
+            st.session_state.training_data = pd.read_csv("spy_training_data.csv")
+        except:
+            st.session_state.training_data = pd.DataFrame()
 
 if 'signal_log' not in st.session_state:
     st.session_state.signal_log = []
@@ -34,7 +40,6 @@ source = st.radio("📡 Choose Data Source", ["Twelve Data (Live)", "Yahoo Finan
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
-# ⏱️ Auto-update with Twelve Data
 if source == "Twelve Data (Live)" and api_key:
     try:
         new_row = fetch_latest_data(ticker, api_key=api_key)
@@ -54,12 +59,15 @@ if source == "Twelve Data (Live)" and api_key:
     except Exception as e:
         st.warning(f"⚠️ Could not update model: {e}")
 
-# Load historical Yahoo data
 if source == "Yahoo Finance (Historical)":
-    period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d"])
+    period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
     hist_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in hist_df.columns]
-    hist_df.rename(columns={"Datetime": "datetime", "Close_SPY": "Close", "High_SPY": "High", "Low_SPY": "Low", "Volume_SPY": "Volume"}, inplace=True)
+
+    hist_df.rename(columns={
+        "Datetime": "datetime", "Close_SPY": "Close", "High_SPY": "High",
+        "Low_SPY": "Low", "Volume_SPY": "Volume"
+    }, inplace=True)
 
     if hist_df.empty:
         st.warning("⚠️ No data retrieved.")
@@ -71,12 +79,17 @@ if source == "Yahoo Finance (Historical)":
             hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(7).mean() /
             -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(7).mean()
         )))
-        hist_df["Volume"] = hist_df["Volume"].fillna(1000000)
+        if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
+            hist_df["Volume"] = 1000000
         hist_df = hist_df.dropna()
-        hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
+        change = hist_df["Close"].shift(-5) - hist_df["Close"]
+        hist_df["Label"] = np.where(change > 0.1, "Buy", np.where(change < -0.1, "Sell", "Hold"))
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
+
+        st.write("### 📄 Yahoo Finance 1-Minute Data (Latest)")
+        st.dataframe(hist_df.tail(200))
 
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
@@ -86,7 +99,7 @@ if source == "Yahoo Finance (Historical)":
             model = train_model(full_data)
             st.session_state.model = model
             pickle.dump(model, open("model.pkl", "wb"))
-            st.success("✅ Model trained from Yahoo historical data.")
+            st.success("✅ Model trained and saved from Yahoo historical data.")
         except Exception as e:
             st.warning(f"⚠️ Could not train model from Yahoo data: {e}")
 
@@ -101,6 +114,7 @@ if not data.empty:
     X = data[features]
     y = data["Label"]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
     model = train_model(pd.concat([X_train, y_train], axis=1))
     st.session_state.model = model
     st.success("✅ Model trained")
@@ -108,20 +122,20 @@ if not data.empty:
     st.write("### 🧪 Backtest")
     st.json(run_backtest(data))
 
-    y_pred = model.predict(X_test)
     st.write("### 📊 Classification Report")
+    y_pred = model.predict(X_test)
     st.text(classification_report(y_test, y_pred))
 
     st.write("### 📊 Confusion Matrix")
-    conf_matrix = confusion_matrix(y_test, y_pred, labels=["Buy", "Sell"])
+    conf_matrix = confusion_matrix(y_test, y_pred, labels=["Buy", "Sell", "Hold"])
     fig, ax = plt.subplots()
     im = ax.imshow(conf_matrix, cmap="Blues")
-    ax.set_xticks([0, 1])
-    ax.set_yticks([0, 1])
-    ax.set_xticklabels(["Buy", "Sell"])
-    ax.set_yticklabels(["Buy", "Sell"])
-    for i in range(2):
-        for j in range(2):
+    ax.set_xticks(range(3))
+    ax.set_yticks(range(3))
+    ax.set_xticklabels(["Buy", "Sell", "Hold"])
+    ax.set_yticklabels(["Buy", "Sell", "Hold"])
+    for i in range(3):
+        for j in range(3):
             ax.text(j, i, conf_matrix[i, j], ha="center", va="center", color="white" if conf_matrix[i, j] > 0 else "black")
     st.pyplot(fig, clear_figure=True)
 
@@ -132,14 +146,10 @@ if not data.empty:
         pred = model.predict(latest)[0]
         proba = model.predict_proba(latest)[0]
         confidence = round(100 * max(proba), 2)
+
         st.metric("📈 Latest Price", f"${price:.2f}")
         st.metric("📊 Signal", pred)
         st.metric("📉 Confidence", f"{confidence}%")
-
-        # Slack alert trigger
-        if pred in ["Buy", "Sell"] and confidence >= 70:
-            msg = f"🔔 {pred} signal for {ticker} at ${price:.2f} ({confidence}% confidence)"
-            send_slack_alert(msg)
     except Exception as e:
         st.warning(f"⚠️ Could not generate signal: {e}")
 else:
