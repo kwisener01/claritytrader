@@ -71,7 +71,8 @@ elif source == "Yahoo Finance (Historical)":
         hist_df["L-PC"] = abs(hist_df["Low"] - hist_df["Close"].shift(1))
         hist_df["TR"] = hist_df[["H-L", "H-PC", "L-PC"]].max(axis=1)
         hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
-        hist_df["RSI"] = 100 - (100 / (1 + (hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() / (-hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()))))
+        hist_df["RSI"] = 100 - (100 / (1 + (hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+                                          (-hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()))))
 
         if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
             hist_df["Volume"] = 1000000
@@ -97,4 +98,4 @@ elif source == "Yahoo Finance (Historical)":
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
         timestamp = str(datetime.datetime.now())
-        price = hist_df["Close"].iloc[-1] if "Close" in hist_df.columns else 0
+        price = hist_df["Close"].iloc[-1] if "Close" in hist_df.columns and not hist_df["Close"].empty else 0
