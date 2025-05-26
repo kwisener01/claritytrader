@@ -94,9 +94,12 @@ if source == "Yahoo Finance (Historical)":
         hist_df = hist_df.dropna()
         hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
-        st.success(f"✅ Loaded {len(hist_df)} rows")
+        st.session_state.training_data.to_csv("training_data.csv", index=False)
+        st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
+
         timestamp = str(datetime.datetime.now())
         price = hist_df["Close"].iloc[-1] if not hist_df["Close"].empty else 0
+        st.session_state.training_data.to_csv("training_data.csv", index=False)
 
 # Training
 st.write("### 📊 Label Distribution")
