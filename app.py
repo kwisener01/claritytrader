@@ -80,6 +80,9 @@ elif source == "Yahoo Finance (Historical)":
     if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
         hist_df["Volume"] = 1000000  # fallback if volume is missing or flat
     hist_df = hist_df.dropna()
+
+    # Add timestamp and OHLC columns to training dataset
+    hist_df = hist_df[["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"] + list(hist_df.columns.difference(["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]).tolist())]
     hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
@@ -130,9 +133,28 @@ if not clean_data.empty:
     st.success("✅ Model auto-trained")
 
     # Run auto backtest
-    st.write("### 🔁 Auto Backtest Results")
     backtest_results = run_backtest(clean_data)
     st.json(backtest_results)
+
+    # Feature importance visualization
+    st.write("### 📈 Feature Importance")
+    try:
+        importances = model.feature_importances_
+        features = ["RSI", "Momentum", "ATR", "Volume"]
+        importance_df = pd.DataFrame({"Feature": features, "Importance": importances})
+        st.bar_chart(importance_df.set_index("Feature"))
+    except Exception as e:
+        st.warning(f"Could not compute feature importances: {e}")
+
+    # OHLC chart visualization
+    st.write("### 📉 OHLC Price Chart")
+    try:
+        ohlc_plot_data = clean_data[['datetime', 'Open', 'High', 'Low', 'Close']].copy()
+        ohlc_plot_data['datetime'] = pd.to_datetime(ohlc_plot_data['datetime'])
+        ohlc_plot_data.set_index('datetime', inplace=True)
+        st.line_chart(ohlc_plot_data[['Close']].tail(100))
+    except Exception as e:
+        st.warning(f"Could not plot OHLC chart: {e}")
 else:
     model = None
     st.warning("⚠️ No valid rows available for training.")
