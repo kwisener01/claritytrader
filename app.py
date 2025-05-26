@@ -1,5 +1,3 @@
-# ClarityTrader App: Fully integrated with fixed confusion matrix and optional train/test split
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,7 +11,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
-from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
+from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user, add_custom_features
 from live_data import fetch_latest_data
 from send_slack_alert import send_slack_alert
 from yahoo_data import fetch_yahoo_intraday
@@ -98,9 +96,13 @@ threshold = st.slider("🎯 Confidence Threshold", 50, 100, 70, 1)
 if st.checkbox("Use Bayesian Forecasting", value=True):
     bayesian_update_user()
 
-clean_data = st.session_state.training_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Label"])
+# Feature engineering + training
+raw_data = st.session_state.training_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Label"])
+clean_data = add_custom_features(raw_data.copy())
+features = ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]
+
 if not clean_data.empty:
-    X = clean_data[["RSI", "Momentum", "ATR", "Volume"]]
+    X = clean_data[features]
     y = clean_data["Label"]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
@@ -133,7 +135,7 @@ if not clean_data.empty:
 
     st.write("### 📈 Feature Importance")
     try:
-        st.bar_chart(pd.DataFrame({"Feature": X.columns, "Importance": model.feature_importances_}).set_index("Feature"))
+        st.bar_chart(pd.DataFrame({"Feature": features, "Importance": model.feature_importances_}).set_index("Feature"))
     except:
         st.warning("Could not display feature importance.")
 
