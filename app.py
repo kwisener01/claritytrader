@@ -35,19 +35,7 @@ source = st.radio("📡 Choose Data Source", ["Twelve Data (Live)", "Yahoo Finan
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
-if source == "Twelve Data (Live)" and api_key:
-    new_row = fetch_latest_data(symbol=ticker, api_key=api_key)
-    if "error" not in new_row:
-        df_new = pd.DataFrame([new_row])
-        df_new["Label"] = "Hold"
-        st.session_state.training_data = pd.concat([st.session_state.training_data, df_new], ignore_index=True)
-        timestamp = new_row["datetime"]
-        price = new_row["close"]
-    else:
-        st.error(f"API Error: {new_row['error']}")
-        timestamp = str(datetime.datetime.now())
-        price = 0
-elif source == "Yahoo Finance (Historical)":
+if source == "Yahoo Finance (Historical)":
     period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
     hist_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in hist_df.columns]
@@ -58,62 +46,45 @@ elif source == "Yahoo Finance (Historical)":
     }, inplace=True)
 
     if hist_df.empty:
-        st.warning("⚠️ No data retrieved from Yahoo Finance.")
+        st.warning("⚠️ No data retrieved.")
     else:
         hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
-        hist_df["H-L"] = hist_df["High"] - hist_df["Low"]
-        hist_df["H-PC"] = abs(hist_df["High"] - hist_df["Close"].shift(1))
-        hist_df["L-PC"] = abs(hist_df["Low"] - hist_df["Close"].shift(1))
-        hist_df["TR"] = hist_df[["H-L", "H-PC", "L-PC"]].max(axis=1)
+        hist_df["TR"] = hist_df[["High", "Low"]].max(axis=1) - hist_df[["High", "Low"]].min(axis=1)
         hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
         hist_df["RSI"] = 100 - (100 / (1 + (
             hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
             -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
         )))
-
         if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
             hist_df["Volume"] = 1000000
-
         hist_df = hist_df.dropna()
-
-        required = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
-        for col in required:
-            if col not in hist_df.columns:
-                hist_df[col] = None
-        hist_df = hist_df[required + [c for c in hist_df.columns if c not in required]]
-
         hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
-        st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
+        st.success(f"✅ Loaded {len(hist_df)} rows")
         timestamp = str(datetime.datetime.now())
-        price = hist_df["Close"].iloc[-1] if "Close" in hist_df.columns and not hist_df["Close"].empty else 0
+        price = hist_df["Close"].iloc[-1] if not hist_df["Close"].empty else 0
 
+# Training
 st.write("### 📊 Label Distribution")
 st.bar_chart(st.session_state.training_data["Label"].value_counts())
-st.dataframe(st.session_state.training_data.tail(10))
-st.download_button("📥 Download CSV", st.session_state.training_data.to_csv(index=False).encode("utf-8"), "training_data.csv")
 
-threshold = st.slider("🎯 Confidence Threshold", 50, 100, 70, 1)
-
-# Feature engineering + training
-raw_data = st.session_state.training_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Label"])
-clean_data = add_custom_features(raw_data.copy())
+data = st.session_state.training_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Label"])
+data = add_custom_features(data)
 features = ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]
 
-if not clean_data.empty:
-    X = clean_data[features]
-    y = clean_data["Label"]
+if not data.empty:
+    X = data[features]
+    y = data["Label"]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-    model = train_model(pd.concat([X_train, y_train], axis=1), apply_bayesian=True)
-    st.session_state['model'] = pickle.dumps(model)
+    model = train_model(pd.concat([X_train, y_train], axis=1))
     st.success("✅ Model trained")
 
     st.write("### 🧪 Backtest")
-    st.json(run_backtest(clean_data))
+    st.json(run_backtest(data))
 
-    y_pred = model.predict(X_test)
     st.write("### 📊 Classification Report")
+    y_pred = model.predict(X_test)
     st.text(classification_report(y_test, y_pred))
 
     st.write("### 📊 Confusion Matrix")
@@ -124,34 +95,9 @@ if not clean_data.empty:
     ax.set_yticks([0, 1])
     ax.set_xticklabels(["Buy", "Sell"])
     ax.set_yticklabels(["Buy", "Sell"])
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
-    plt.title("Confusion Matrix")
     for i in range(2):
         for j in range(2):
             ax.text(j, i, conf_matrix[i, j], ha="center", va="center", color="white" if conf_matrix[i, j] > 0 else "black")
     st.pyplot(fig, clear_figure=True)
-
-    st.write("### 📈 Feature Importance")
-    try:
-        st.bar_chart(pd.DataFrame({"Feature": features, "Importance": model.feature_importances_}).set_index("Feature"))
-    except:
-        st.warning("Could not display feature importance.")
-
-    st.write("### 📉 OHLC Chart")
-    try:
-        chart_data = clean_data[["datetime", "Open", "High", "Low", "Close"]].copy()
-        chart_data["datetime"] = pd.to_datetime(chart_data["datetime"])
-        chart_data.set_index("datetime", inplace=True)
-        fig = go.Figure(data=[go.Candlestick(x=chart_data.index, open=chart_data["Open"], high=chart_data["High"],
-                                             low=chart_data["Low"], close=chart_data["Close"])])
-        for signal, color in [("Buy", "green"), ("Sell", "red")]:
-            df = clean_data[clean_data["Label"] == signal]
-            fig.add_trace(go.Scatter(x=df["datetime"], y=df["Close"], mode="markers", name=signal, marker=dict(color=color, size=6)))
-        fig.update_layout(xaxis_rangeslider_visible=False)
-        st.plotly_chart(fig, use_container_width=True)
-    except Exception as e:
-        st.warning(f"Chart error: {e}")
 else:
-    model = None
-    st.warning("⚠️ No valid rows available for training.")
+    st.warning("⚠️ Not enough data to train.")
