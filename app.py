@@ -11,10 +11,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
-
-from strategy_utils import generate_signal, run_backtest, add_custom_features
-from train_model import train_model
-
+from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user, add_custom_features
 from live_data import fetch_latest_data
 from send_slack_alert import send_slack_alert
 from yahoo_data import fetch_yahoo_intraday
@@ -134,7 +131,7 @@ if not clean_data.empty:
     for i in range(2):
         for j in range(2):
             ax.text(j, i, conf_matrix[i, j], ha="center", va="center", color="white" if conf_matrix[i, j] > 0 else "black")
-    st.pyplot(fig)
+    st.pyplot(fig, clear_figure=True)
 
     st.write("### 📈 Feature Importance")
     try:
