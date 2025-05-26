@@ -7,8 +7,6 @@ import datetime
 import pytz
 import os
 import io
-import numpy as np
-
 from streamlit_autorefresh import st_autorefresh
 
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
@@ -83,18 +81,9 @@ elif source == "Yahoo Finance (Historical)":
         hist_df["Volume"] = 1000000  # fallback if volume is missing or flat
     hist_df = hist_df.dropna()
 
-   # Ensure all required columns exist before selecting
-required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
-missing_columns = [col for col in required_columns if col not in hist_df.columns]
-
-if missing_columns:
-    st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
-    for col in missing_columns:
-        hist_df[col] = None  # fill missing columns with None
-
-# Reorder columns safely by ensuring required ones are at the front
-ordered_cols = required_columns + [col for col in hist_df.columns if col not in required_columns]
-hist_df = hist_df[ordered_cols]
+    # Ensure all required columns exist before selecting
+    required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
+    missing_columns = [col for col in required_columns if col not in hist_df.columns]
 
     if missing_columns:
         st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
@@ -103,7 +92,18 @@ hist_df = hist_df[ordered_cols]
 
     # Reorder columns safely
     ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
-    hist_df = hist_df[ordered_cols]
+    # Ensure all required columns exist before selecting
+    required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
+    missing_columns = [col for col in required_columns if col not in hist_df.columns]
+
+    if missing_columns:
+        st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
+        for col in missing_columns:
+            hist_df[col] = None  # fill missing columns with None
+
+    # Reorder columns safely
+    ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
+    hist_df = hist_df[ordered_cols]).tolist())]
     hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
