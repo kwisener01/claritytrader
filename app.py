@@ -7,6 +7,8 @@ import datetime
 import pytz
 import os
 import io
+import numpy as np
+
 from streamlit_autorefresh import st_autorefresh
 
 from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user
