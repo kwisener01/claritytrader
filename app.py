@@ -64,9 +64,11 @@ elif source == "Yahoo Finance (Historical)":
     hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
     hist_df["RSI"] = 100 - (100 / (1 + (hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
                                       (-hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()))))
-    hist_df["Volume"] = 1000000  # Placeholder volume
+    # Use actual Yahoo volume if available
+    if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
+        hist_df["Volume"] = 1000000  # fallback if volume is missing or flat
     hist_df = hist_df.dropna()
-    hist_df["Label"] = "Hold"
+    hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
     timestamp = str(datetime.datetime.now())
@@ -91,6 +93,9 @@ with st.expander("➕ Add Training Row Manually"):
         st.success("✅ Row added to training data.")
 
 # Show current training data
+st.write("### 📊 Label Distribution")
+label_counts = st.session_state.training_data["Label"].value_counts()
+st.bar_chart(label_counts)
 st.write("### 🧾 Current Training Data")
 st.dataframe(st.session_state.training_data.tail(10))
 
