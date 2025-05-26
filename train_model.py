@@ -1,17 +1,20 @@
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
+import pickle
 
-def train_model(df, apply_bayesian=False):
-    features = ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]
-    X = df[features]
-    y = df["Label"]
+# Load training data
+df = pd.read_csv("spy_training_data.csv")
 
-    param_grid = {
-        "n_estimators": [50, 100],
-        "max_depth": [3, 5, 10],
-        "min_samples_split": [2, 5],
-    }
+# Define features and target
+X = df[["RSI", "Momentum", "ATR", "Volume"]]
+y = df["Label"]
 
-    grid = GridSearchCV(RandomForestClassifier(random_state=42), param_grid, cv=3)
-    grid.fit(X, y)
-    return grid.best_estimator_
+# Train model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X, y)
+
+# Save model to file
+with open("model.pkl", "wb") as f:
+    pickle.dump(model, f)
+
+print("✅ Model trained and saved to model.pkl")
