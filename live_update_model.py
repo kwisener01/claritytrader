@@ -6,7 +6,7 @@ from live_data import fetch_latest_data
 
 # Load previous training data and model
 try:
-    df = pd.read_csv("training_data.csv")
+    df = pd.read_csv("spy_training_data.csv")
 except:
     df = pd.DataFrame()
 
@@ -20,5 +20,5 @@ if len(df) > 30000:
 
 model = train_model(df)
 pickle.dump(model, open("model.pkl", "wb"))
-df.to_csv("training_data.csv", index=False)
+df.to_csv("spy_training_data.csv", index=False)
 print("✅ Model updated and saved.")
