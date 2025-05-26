@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import pickle
 import datetime
+import os
+import io
+
 from live_data import fetch_latest_data
 from strategy_utils import add_custom_features, generate_signal, run_backtest
 from train_model import train_model
@@ -37,7 +40,6 @@ source = st.radio("📡 Choose Data Source", ["Twelve Data (Live)", "Yahoo Finan
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
-# 🔁 Live retrain
 if source == "Twelve Data (Live)" and api_key:
     try:
         new_row = fetch_latest_data(ticker, api_key=api_key)
@@ -57,11 +59,11 @@ if source == "Twelve Data (Live)" and api_key:
     except Exception as e:
         st.warning(f"⚠️ Could not update model: {e}")
 
-# Yahoo data block
 if source == "Yahoo Finance (Historical)":
-    period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d"])
+    period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
     hist_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in hist_df.columns]
+
     hist_df.rename(columns={
         "Datetime": "datetime", "Close_SPY": "Close", "High_SPY": "High",
         "Low_SPY": "Low", "Volume_SPY": "Volume"
@@ -77,15 +79,16 @@ if source == "Yahoo Finance (Historical)":
             hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(7).mean() /
             -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(7).mean()
         )))
-        hist_df["Volume"] = hist_df["Volume"].fillna(1000000)
+        if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
+            hist_df["Volume"] = 1000000
         hist_df = hist_df.dropna()
         hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
+
         st.write("### 📄 Yahoo Finance 1-Minute Data (Latest)")
         st.dataframe(hist_df.tail(200))
-
 
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
@@ -99,7 +102,6 @@ if source == "Yahoo Finance (Historical)":
         except Exception as e:
             st.warning(f"⚠️ Could not train model from Yahoo data: {e}")
 
-# Training logic
 st.write("### 📊 Label Distribution")
 st.bar_chart(st.session_state.training_data["Label"].value_counts())
 
@@ -143,6 +145,7 @@ if not data.empty:
         pred = model.predict(latest)[0]
         proba = model.predict_proba(latest)[0]
         confidence = round(100 * max(proba), 2)
+
         st.metric("📈 Latest Price", f"${price:.2f}")
         st.metric("📊 Signal", pred)
         st.metric("📉 Confidence", f"{confidence}%")
