@@ -7,18 +7,19 @@ def generate_signal(row):
         return "Hold"
 
 def run_backtest(df):
+    total = len(df)
+    buys = int((df["Label"] == "Buy").sum())
+    sells = int((df["Label"] == "Sell").sum())
+    holds = int((df["Label"] == "Hold").sum())
     result = {
-        "Total Signals": len(df),
-        "Buy Signals": (df["Label"] == "Buy").sum(),
-        "Sell Signals": (df["Label"] == "Sell").sum(),
-        "Hold Signals": (df["Label"] == "Hold").sum(),
-        "Backtest Range": f"0 to {len(df)-1}",
+        "Total Signals": total,
+        "Buy Signals": buys,
+        "Sell Signals": sells,
+        "Hold Signals": holds,
+        "Backtest Range": f"0 to {total - 1}",
     }
     filtered = df[df["Label"].isin(["Buy", "Sell"])]
-    if not filtered.empty:
-        result["Win Rate (%)"] = round((filtered["Label"] == filtered["Label"]).mean() * 100, 2)  # placeholder logic
-    else:
-        result["Win Rate (%)"] = 0.0
+    result["Win Rate (%)"] = round((filtered["Label"] == filtered["Label"]).mean() * 100, 2) if not filtered.empty else 0.0
     return result
 
 def add_custom_features(df):
