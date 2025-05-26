@@ -100,9 +100,8 @@ if source == "Yahoo Finance (Historical)":
         hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.session_state.training_data.to_csv("training_data.csv", index=False)
-        st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")st.session_state.training_data, hist_df], ignore_index=True)
-        st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
+
 
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
