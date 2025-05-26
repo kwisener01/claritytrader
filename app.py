@@ -103,7 +103,7 @@ elif source == "Yahoo Finance (Historical)":
 
     # Reorder columns safely
     ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
-    hist_df = hist_df[ordered_cols]).tolist())]
+    hist_df = hist_df[ordered_cols]]
     hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
