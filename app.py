@@ -50,6 +50,7 @@ if source == "Twelve Data (Live)" and api_key:
         st.error(f"API Error: {new_row['error']}")
         timestamp = str(datetime.datetime.now())
         price = 0
+
 elif source == "Yahoo Finance (Historical)":
     period = st.selectbox("📆 Yahoo Finance Period", ["1d", "5d", "7d", "1mo", "3mo"])
     hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
@@ -67,50 +68,46 @@ elif source == "Yahoo Finance (Historical)":
     }, inplace=True)
 
     if hist_df.empty:
-        st.warning("⚠️ No data retrieved from Yahoo Finance. This can happen on weekends, holidays, or if the ticker is invalid. Try a different symbol or time.")
+        st.warning("⚠️ No data retrieved from Yahoo Finance. This can happen on weekends, holidays, or if the ticker is invalid.")
+    else:
+        # Calculate indicators
+        hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
+        hist_df["H-L"] = hist_df["High"] - hist_df["Low"]
+        hist_df["H-PC"] = abs(hist_df["High"] - hist_df["Close"].shift(1))
+        hist_df["L-PC"] = abs(hist_df["Low"] - hist_df["Close"].shift(1))
+        hist_df["TR"] = hist_df[["H-L", "H-PC", "L-PC"]].max(axis=1)
+        hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
+        hist_df["RSI"] = 100 - (100 / (1 + (hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+                                          (-hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()))))
 
-    # Ensure indicators are calculated
-    hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
-    hist_df["H-L"] = hist_df["High"] - hist_df["Low"]
-    hist_df["H-PC"] = abs(hist_df["High"] - hist_df["Close"].shift(1))
-    hist_df["L-PC"] = abs(hist_df["Low"] - hist_df["Close"].shift(1))
-    hist_df["TR"] = hist_df[["H-L", "H-PC", "L-PC"]].max(axis=1)
-    hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
-    hist_df["RSI"] = 100 - (100 / (1 + (hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
-                                      (-hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()))))
-    # Use actual Yahoo volume if available
-    if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
-        hist_df["Volume"] = 1000000  # fallback if volume is missing or flat
-    hist_df = hist_df.dropna()
+        # Use actual Yahoo volume if available
+        if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
+            hist_df["Volume"] = 1000000  # fallback
 
-    # Ensure all required columns exist before selecting
-    required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
-    missing_columns = [col for col in required_columns if col not in hist_df.columns]
+        hist_df = hist_df.dropna()
 
-    if missing_columns:
-        st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
-        for col in missing_columns:
-            hist_df[col] = None  # fill missing columns with None
+        # Ensure required columns exist
+        required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
+        missing_columns = [col for col in required_columns if col not in hist_df.columns]
+        if missing_columns:
+            st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
+            for col in missing_columns:
+                hist_df[col] = None
 
-    # Reorder columns safely
-    ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
-    # Ensure all required columns exist before selecting
-    required_columns = ["datetime", "Open", "High", "Low", "Close", "RSI", "Momentum", "ATR", "Volume"]
-    missing_columns = [col for col in required_columns if col not in hist_df.columns]
+        # Reorder columns safely
+        ordered_cols = required_columns + [col for col in hist_df.columns if col not in required_columns]
+        hist_df = hist_df[ordered_cols]
 
-    if missing_columns:
-        st.warning(f"⚠️ Missing columns in historical data: {missing_columns}")
-        for col in missing_columns:
-            hist_df[col] = None  # fill missing columns with None
+        # Generate Labels
+        hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
 
-    # Reorder columns safely
-    ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
-    hist_df = hist_df[ordered_cols]
-    hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
-    st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
-    st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
-    timestamp = str(datetime.datetime.now())
-    price = 0
+        # Append to session training data
+        st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
+        st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
+
+        # Set context for latest row if needed
+        timestamp = str(datetime.datetime.now())
+        price = hist_df["Close"].iloc[-1] if not hist_df["Close"].empty else 0
 
 # Manual training row input
 with st.expander("➕ Add Training Row Manually"):
