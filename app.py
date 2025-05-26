@@ -87,26 +87,33 @@ apply_bayes = st.checkbox("Use Bayesian Forecasting", value=True)
 if apply_bayes:
     bayesian_update_user()
 
-# Train the model every refresh
-model = train_model(st.session_state.training_data, apply_bayesian=apply_bayes)
-buf = io.BytesIO()
-pickle.dump(model, buf)
-st.session_state['model'] = buf.getvalue()
-st.success("✅ Model auto-trained")
+# Train the model every refresh with cleaned data
+clean_data = st.session_state.training_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Label"])
+if not clean_data.empty:
+    model = train_model(clean_data, apply_bayesian=apply_bayes)
+    buf = io.BytesIO()
+    pickle.dump(model, buf)
+    st.session_state['model'] = buf.getvalue()
+    st.success("✅ Model auto-trained")
+else:
+    model = None
+    st.warning("⚠️ No valid rows available for training.")
 
 # Signal from last row
 st.write("### 🧠 Generate Signal from Latest Data")
 latest_row = st.session_state.training_data.iloc[-1].drop("Label", errors="ignore")
 input_df = pd.DataFrame([latest_row])[ [col for col in ["RSI", "Momentum", "ATR", "Volume"] if col in latest_row] ]
-pred = model.predict(input_df)[0]
-proba = model.predict_proba(input_df)[0]
-confidence = round(100 * max(proba), 2)
+if model is not None:
+    pred = model.predict(input_df)[0]
+    proba = model.predict_proba(input_df)[0]
+    confidence = round(100 * max(proba), 2)
+    st.metric(label="Signal", value=pred)
+    st.metric(label="Confidence", value=f"{confidence}%")
 
-st.metric(label="Signal", value=pred)
-st.metric(label="Confidence", value=f"{confidence}%")
-
-# Log signal
-st.session_state.signal_log.append([timestamp, ticker, pred, confidence, price])
+    # Log signal
+    st.session_state.signal_log.append([timestamp, ticker, pred, confidence, price])
+else:
+    st.warning("⚠️ Model not available to generate signal.")
 
 # Journal entry
 with st.form(key="journal_form"):
@@ -118,7 +125,7 @@ with st.form(key="journal_form"):
     submit = st.form_submit_button("Save Journal Entry")
     if submit:
         filename = file.name if file else None
-        st.session_state.trade_journal.append([timestamp, ticker, pred, reason, emotion, reflection, filename])
+        st.session_state.trade_journal.append([timestamp, ticker, pred if model else "N/A", reason, emotion, reflection, filename])
         if file:
             if not os.path.exists("uploads"):
                 os.makedirs("uploads")
