@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
-from strategy_utils import generate_signal, run_backtest, train_model, bayesian_update_user, add_custom_features
+from strategy_utils import generate_signal, run_backtest, add_custom_features
+from train_model import train_model
 from live_data import fetch_latest_data
 from send_slack_alert import send_slack_alert
 from yahoo_data import fetch_yahoo_intraday
@@ -93,8 +94,6 @@ st.dataframe(st.session_state.training_data.tail(10))
 st.download_button("📥 Download CSV", st.session_state.training_data.to_csv(index=False).encode("utf-8"), "training_data.csv")
 
 threshold = st.slider("🎯 Confidence Threshold", 50, 100, 70, 1)
-if st.checkbox("Use Bayesian Forecasting", value=True):
-    bayesian_update_user()
 
 # Feature engineering + training
 raw_data = st.session_state.training_data.dropna(subset=["RSI", "Momentum", "ATR", "Volume", "Label"])
@@ -131,7 +130,7 @@ if not clean_data.empty:
     for i in range(2):
         for j in range(2):
             ax.text(j, i, conf_matrix[i, j], ha="center", va="center", color="white" if conf_matrix[i, j] > 0 else "black")
-    st.pyplot(fig)
+    st.pyplot(fig, clear_figure=True)
 
     st.write("### 📈 Feature Importance")
     try:
