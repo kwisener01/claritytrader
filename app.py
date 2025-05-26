@@ -104,7 +104,7 @@ elif source == "Yahoo Finance (Historical)":
     # Reorder columns safely
     ordered_cols = required_columns + list(hist_df.columns.difference(required_columns))
     hist_df = hist_df[ordered_cols]).tolist())]
-    hist_df["Label"] = hist_df.apply(generate_signal, axis=1)
+    hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
     st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
     st.success(f"✅ Pulled {len(hist_df)} rows from Yahoo Finance")
     timestamp = str(datetime.datetime.now())
@@ -157,6 +157,25 @@ if not clean_data.empty:
     backtest_results = run_backtest(clean_data)
     st.json(backtest_results)
 
+    # Classification Report & Confusion Matrix
+    from sklearn.metrics import classification_report, confusion_matrix
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    y_true = clean_data["Label"]
+    y_pred = model.predict(clean_data[["RSI", "Momentum", "ATR", "Volume"]])
+
+    st.write("### 📊 Classification Report")
+    st.text(classification_report(y_true, y_pred))
+
+    st.write("### 📊 Confusion Matrix")
+    conf_matrix = confusion_matrix(y_true, y_pred)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=["Buy", "Sell"], yticklabels=["Buy", "Sell"])
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    st.pyplot(fig)
+
     # Feature importance visualization
     st.write("### 📈 Feature Importance")
     try:
@@ -173,7 +192,24 @@ if not clean_data.empty:
         ohlc_plot_data = clean_data[['datetime', 'Open', 'High', 'Low', 'Close']].copy()
         ohlc_plot_data['datetime'] = pd.to_datetime(ohlc_plot_data['datetime'])
         ohlc_plot_data.set_index('datetime', inplace=True)
-        st.line_chart(ohlc_plot_data[['Close']].tail(100))
+        import plotly.graph_objects as go
+
+        fig = go.Figure(data=[go.Candlestick(
+            x=ohlc_plot_data.index,
+            open=ohlc_plot_data["Open"],
+            high=ohlc_plot_data["High"],
+            low=ohlc_plot_data["Low"],
+            close=ohlc_plot_data["Close"],
+            name="Price")])
+
+        # Add Buy/Sell markers
+        buy_signals = clean_data[clean_data["Label"] == "Buy"]
+        sell_signals = clean_data[clean_data["Label"] == "Sell"]
+        fig.add_trace(go.Scatter(x=buy_signals["datetime"], y=buy_signals["Close"], mode="markers", name="Buy", marker=dict(color="green", size=8)))
+        fig.add_trace(go.Scatter(x=sell_signals["datetime"], y=sell_signals["Close"], mode="markers", name="Sell", marker=dict(color="red", size=8)))
+
+        fig.update_layout(xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.warning(f"Could not plot OHLC chart: {e}")
 else:
