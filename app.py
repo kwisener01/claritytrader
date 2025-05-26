@@ -82,13 +82,14 @@ if source == "Yahoo Finance (Historical)":
         if "Volume" not in hist_df.columns or hist_df["Volume"].nunique() <= 1:
             hist_df["Volume"] = 1000000
         hist_df = hist_df.dropna()
-        hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
+        change = hist_df["Close"].shift(-5) - hist_df["Close"]
+        hist_df["Label"] = np.where(change > 0.1, "Buy", np.where(change < -0.1, "Sell", "Hold"))
         st.session_state.training_data = pd.concat([st.session_state.training_data, hist_df], ignore_index=True)
         st.session_state.training_data.to_csv("training_data.csv", index=False)
         st.success(f"✅ Loaded {len(hist_df)} rows and saved to training_data.csv")
 
         st.write("### 📄 Yahoo Finance 1-Minute Data (Latest)")
-        st.dataframe(hist_df.tail(2000000))
+        st.dataframe(hist_df.tail(200))
 
         try:
             full_data = add_custom_features(st.session_state.training_data.copy())
@@ -126,15 +127,15 @@ if not data.empty:
     st.text(classification_report(y_test, y_pred))
 
     st.write("### 📊 Confusion Matrix")
-    conf_matrix = confusion_matrix(y_test, y_pred, labels=["Buy", "Sell"])
+    conf_matrix = confusion_matrix(y_test, y_pred, labels=["Buy", "Sell", "Hold"])
     fig, ax = plt.subplots()
     im = ax.imshow(conf_matrix, cmap="Blues")
-    ax.set_xticks([0, 1])
-    ax.set_yticks([0, 1])
-    ax.set_xticklabels(["Buy", "Sell"])
-    ax.set_yticklabels(["Buy", "Sell"])
-    for i in range(2):
-        for j in range(2):
+    ax.set_xticks(range(3))
+    ax.set_yticks(range(3))
+    ax.set_xticklabels(["Buy", "Sell", "Hold"])
+    ax.set_yticklabels(["Buy", "Sell", "Hold"])
+    for i in range(3):
+        for j in range(3):
             ax.text(j, i, conf_matrix[i, j], ha="center", va="center", color="white" if conf_matrix[i, j] > 0 else "black")
     st.pyplot(fig, clear_figure=True)
 
