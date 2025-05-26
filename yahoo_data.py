@@ -3,30 +3,32 @@ import pandas as pd
 
 def fetch_yahoo_intraday(symbol="SPY", interval="1m", period="7d"):
     try:
-        data = yf.download(tickers=symbol, interval=interval, period=period, progress=False)
-        if data.empty:
+        df = yf.download(tickers=symbol, interval=interval, period=period, progress=False)
+        if df.empty:
             return pd.DataFrame()
-        data = data.reset_index()
-        data = data.rename(columns={"Datetime": "datetime", "Close": "Close", "High": "High", "Low": "Low"})
+        if df.index.tz is None:
+            df.index = df.index.tz_localize('UTC')
+        df = df.tz_convert('US/Eastern')
+        df.reset_index(inplace=True)
 
-        # Indicator calculations
-        data["Momentum"] = data["Close"] - data["Close"].shift(5)
-        data["H-L"] = data["High"] - data["Low"]
-        data["H-PC"] = abs(data["High"] - data["Close"].shift(1))
-        data["L-PC"] = abs(data["Low"] - data["Close"].shift(1))
-        data["TR"] = data[["H-L", "H-PC", "L-PC"]].max(axis=1)
-        data["ATR"] = data["TR"].rolling(14).mean()
+        # Rename and calculate features
+        df.rename(columns={"Datetime": "datetime"}, inplace=True)
+        df["Momentum"] = df["Close"] - df["Close"].shift(5)
+        df["H-L"] = df["High"] - df["Low"]
+        df["H-PC"] = abs(df["High"] - df["Close"].shift(1))
+        df["L-PC"] = abs(df["Low"] - df["Close"].shift(1))
+        df["TR"] = df[["H-L", "H-PC", "L-PC"]].max(axis=1)
+        df["ATR"] = df["TR"].rolling(14).mean()
 
-        # RSI
-        delta = data["Close"].diff()
+        delta = df["Close"].diff()
         gain = delta.where(delta > 0, 0).rolling(14).mean()
         loss = -delta.where(delta < 0, 0).rolling(14).mean()
         rs = gain / loss
-        data["RSI"] = 100 - (100 / (1 + rs))
+        df["RSI"] = 100 - (100 / (1 + rs))
 
-        data["Volume"] = 1000000  # Placeholder
-        return data.dropna()
+        df["Volume"] = 1000000  # Placeholder
+        return df.dropna()
 
     except Exception as e:
-        print(f"Yahoo Finance fetch error: {e}")
+        print(f"[Yahoo Fetch Error] {e}")
         return pd.DataFrame()
