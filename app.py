@@ -49,7 +49,8 @@ if source == "Twelve Data (Live)" and api_key:
         timestamp = str(datetime.datetime.now())
         price = 0
 elif source == "Yahoo Finance (Historical)":
-    hist_df = fetch_yahoo_intraday(symbol=ticker)
+    period = st.selectbox("📆 Yahoo Finance Period", ["1d", "5d", "7d", "1mo", "3mo"])
+    hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
 
     # Ensure indicators are calculated
     hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
