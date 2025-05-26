@@ -6,9 +6,4 @@ streamlit-autorefresh
 yfinance
 plotly
 seaborn
-streamlit
-pandas
 numpy
-scikit-learn
-matplotlib
-plotly
