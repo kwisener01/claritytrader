@@ -1,7 +1,7 @@
 def generate_signal(row):
-    if row["RSI"] > 55 and row["Momentum"] > 0:
+    if row["RSI"] > 60 and row["Momentum"] > 0 and row["Accel"] > 0:
         return "Buy"
-    elif row["RSI"] < 45 and row["Momentum"] < 0:
+    elif row["RSI"] < 40 and row["Momentum"] < 0 and row["Accel"] < 0:
         return "Sell"
     else:
         return "Hold"
