@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import datetime
+
 from live_data import fetch_latest_data
 from strategy_utils import add_custom_features, generate_signal, run_backtest
 from train_model import train_model
@@ -167,7 +168,7 @@ if not data.empty:
         st.metric("📉 Confidence", f"{confidence}%")
 
         # Slack alert trigger
-        if pred in ["Buy", "Sell"] and confidence >= 70:
+        if pred in ["Buy", "Sell", "Hold"] and confidence >= 70:
             msg = f"🔔 {pred} signal for {ticker} at ${price:.2f} ({confidence}% confidence)"
             send_slack_alert(msg)
     except Exception as e:
