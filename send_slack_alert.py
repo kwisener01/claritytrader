@@ -1,19 +1,15 @@
 
 import requests
 
-def send_slack_alert(webhook_url, ticker, signal, confidence, price, timestamp):
-    message = {
-        "text": f":rotating_light: *ClarityTrader Alert*\n"
-                f"• *Ticker:* `{ticker}`\n"
-                f"• *Signal:* *{signal.upper()}*\n"
-                f"• *Confidence:* `{confidence}%`\n"
-                f"• *Price:* `${price}`\n"
-                f"• *Time:* `{timestamp}`"
+def send_slack_alert(signal, price, confidence, ticker="SPY"):
+    import requests
+    url = "https://hooks.slack.com/services/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"
+    text = f"{signal} signal for {ticker} at ${price:.2f} — Confidence: {confidence}%"
+    payload = {
+        "channel": "#signals",
+        "text": text
     }
-
     try:
-        response = requests.post(webhook_url, json=message)
-        if response.status_code != 200:
-            raise ValueError(f"Request to Slack returned error: {response.status_code}, {response.text}")
+        requests.post(url, json=payload)
     except Exception as e:
-        print(f"Slack alert failed: {e}")
+        print("Slack alert failed:", e)
