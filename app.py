@@ -89,6 +89,9 @@ elif source == "📥 Load & Train from Yahoo Finance":
             df.to_csv("training_data.csv", index=False)
             st.session_state.training_data = df
 
+            if len(df) < 30:
+                raise ValueError("Not enough samples to train a model. Please select a longer period.")
+
             model = train_model(df)
             st.session_state.model = model
             pickle.dump(model, open("model.pkl", "wb"))
