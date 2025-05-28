@@ -24,7 +24,7 @@ st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 if 'training_data' not in st.session_state:
     st.session_state.training_data = pd.DataFrame()
 
-if 'model' not in st.session_state:
+if 'model' not in st.session_state or st.session_state.model is None:
     try:
         with open("model.pkl", "rb") as f:
             st.session_state.model = pickle.load(f)
@@ -56,15 +56,6 @@ if st.session_state.latest_signal:
 
 # Prediction from Twelve Data
 if source == "🔁 Predict Signal from Twelve Data" and api_key:
-    # Ensure model is loaded from disk if missing
-    if st.session_state.model is None:
-        try:
-            with open("model.pkl", "rb") as f:
-                st.session_state.model = pickle.load(f)
-            st.success("✅ Model reloaded from disk.")
-        except:
-            st.warning("⚠️ Model file not found. Please train with Yahoo Finance first.")
-
     try:
         new_row = fetch_latest_data(ticker, api_key=api_key)
         if "error" in new_row:
@@ -74,7 +65,15 @@ if source == "🔁 Predict Signal from Twelve Data" and api_key:
             df = add_custom_features(df).dropna()
 
             st.write("### 🧠 Live Signal")
-            if 'model' in st.session_state and st.session_state.model is not None and not df.empty:
+            if st.session_state.model is None:
+                try:
+                    with open("model.pkl", "rb") as f:
+                        st.session_state.model = pickle.load(f)
+                    st.success("✅ Model reloaded from disk.")
+                except:
+                    st.warning("⚠️ Model file not found. Please train with Yahoo Finance first.")
+
+            if st.session_state.model is not None and not df.empty:
                 features = [col for col in df.columns if col in ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]]
                 X_live = df[features]
                 pred = st.session_state.model.predict(X_live)[0]
