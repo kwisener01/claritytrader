@@ -84,6 +84,15 @@ if source == "🔁 Predict Signal from Twelve Data" and api_key:
                 st.metric("Confidence", f"{confidence}%")
                 st.metric("Price", f"${price:.2f}")
                 st.session_state.latest_signal = (pred, confidence, price)
+
+                # Append signal log
+                st.session_state.signal_log.append({
+                    "timestamp": str(datetime.datetime.now()),
+                    "ticker": ticker,
+                    "signal": pred,
+                    "confidence": confidence,
+                    "price": price
+                })
             else:
                 st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
     except Exception as e:
@@ -122,7 +131,7 @@ elif source == "📥 Load & Train from Yahoo Finance":
             model = train_model(df)
             st.session_state.model = model
             pickle.dump(model, open("model.pkl", "wb"))
-            st.success("✅ Model trained and saved.")
+            st.success("✅ Model trained and saved to model.pkl.")
 
             st.write("### 📊 Label Distribution")
             st.bar_chart(df["Label"].value_counts())
