@@ -28,8 +28,10 @@ if 'model' not in st.session_state:
     try:
         with open("model.pkl", "rb") as f:
             st.session_state.model = pickle.load(f)
+        st.success("✅ Model loaded from disk.")
     except:
         st.session_state.model = None
+        st.warning("⚠️ No model found on disk. Please train with Yahoo data first.")
 
 if 'signal_log' not in st.session_state:
     st.session_state.signal_log = []
