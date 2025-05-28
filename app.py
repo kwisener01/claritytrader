@@ -43,6 +43,14 @@ source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data",
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
+# Display latest signal info if exists
+if 'latest_signal' in st.session_state:
+    signal, confidence, price = st.session_state.latest_signal
+    st.subheader("🔔 Latest Signal")
+    st.metric("Signal", signal)
+    st.metric("Confidence", f"{confidence}%")
+    st.metric("Price", f"${price:.2f}")
+
 # Prediction from Twelve Data
 if source == "🔁 Predict Signal from Twelve Data" and api_key:
     new_row = fetch_latest_data(ticker, api_key=api_key)
@@ -59,8 +67,11 @@ if source == "🔁 Predict Signal from Twelve Data" and api_key:
             pred = st.session_state.model.predict(X_live)[0]
             proba = st.session_state.model.predict_proba(X_live)[0]
             confidence = round(100 * max(proba), 2)
+            price = new_row.get("close", 0)
             st.metric("Signal", pred)
             st.metric("Confidence", f"{confidence}%")
+            st.metric("Price", f"${price:.2f}")
+            st.session_state.latest_signal = (pred, confidence, price)
         else:
             st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
 
