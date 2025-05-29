@@ -30,20 +30,27 @@ if 'signal_log' not in st.session_state:
 if 'latest_signal' not in st.session_state:
     st.session_state.latest_signal = None
 
+if 'model' not in st.session_state:
+    st.session_state.model = None
+
 st_autorefresh(interval=300000, key="auto_refresh")
 
 # Load model on startup
-def load_model():
+@st.cache_resource
+def load_model_from_disk():
     try:
         with open("model.pkl", "rb") as f:
-            st.session_state.model = pickle.load(f)
-        st.success("✅ Model loaded from disk.")
+            return pickle.load(f)
     except:
-        st.session_state.model = None
-        st.warning("⚠️ No model found on disk. Please train with Yahoo data first.")
+        return None
 
-if 'model' not in st.session_state or st.session_state.model is None:
-    load_model()
+if st.session_state.model is None:
+    model_from_disk = load_model_from_disk()
+    if model_from_disk:
+        st.session_state.model = model_from_disk
+        st.success("✅ Model loaded from disk.")
+    else:
+        st.warning("⚠️ No model found on disk. Please train with Yahoo data first.")
 
 # Actions UI
 source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
@@ -60,7 +67,12 @@ if st.session_state.latest_signal:
 
 # Manual model reload
 if st.button("🔁 Reload Model"):
-    load_model()
+    model = load_model_from_disk()
+    if model:
+        st.session_state.model = model
+        st.success("✅ Model reloaded from disk.")
+    else:
+        st.warning("⚠️ Model file not found. Please train with Yahoo Finance first.")
 
 # Prediction from Twelve Data
 if source == "🔁 Predict Signal from Twelve Data" and api_key:
