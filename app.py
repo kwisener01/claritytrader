@@ -24,6 +24,20 @@ st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 if 'training_data' not in st.session_state:
     st.session_state.training_data = pd.DataFrame()
 
+if 'signal_log' not in st.session_state:
+    st.session_state.signal_log = []
+
+if 'latest_signal' not in st.session_state:
+    st.session_state.latest_signal = None
+
+st_autorefresh(interval=300000, key="auto_refresh")
+
+# Actions UI
+source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
+ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
+api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+
+# Load model immediately after source selection
 if 'model' not in st.session_state or st.session_state.model is None:
     try:
         with open("model.pkl", "rb") as f:
@@ -33,19 +47,6 @@ if 'model' not in st.session_state or st.session_state.model is None:
         st.session_state.model = None
         st.warning("⚠️ No model found on disk. Please train with Yahoo data first.")
 
-if 'signal_log' not in st.session_state:
-    st.session_state.signal_log = []
-
-if 'latest_signal' not in st.session_state:
-    st.session_state.latest_signal = None
-
-st_autorefresh(interval=300000, key="auto_refresh")
-
-# Data Source UI
-source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
-ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
-api_key = st.text_input("🔑 Twelve Data API Key", type="password")
-
 # Display latest signal info if exists
 if st.session_state.latest_signal:
     signal, confidence, price = st.session_state.latest_signal
@@ -53,6 +54,15 @@ if st.session_state.latest_signal:
     st.metric("Signal", signal)
     st.metric("Confidence", f"{confidence}%")
     st.metric("Price", f"${price:.2f}")
+
+# Manual model reload
+if st.button("🔁 Reload Model"):
+    try:
+        with open("model.pkl", "rb") as f:
+            st.session_state.model = pickle.load(f)
+        st.success("✅ Model reloaded from disk.")
+    except:
+        st.warning("⚠️ No model file found. Please train first.")
 
 # Prediction from Twelve Data
 if source == "🔁 Predict Signal from Twelve Data" and api_key:
@@ -65,14 +75,6 @@ if source == "🔁 Predict Signal from Twelve Data" and api_key:
             df = add_custom_features(df).dropna()
 
             st.write("### 🧠 Live Signal")
-            if st.session_state.model is None:
-                try:
-                    with open("model.pkl", "rb") as f:
-                        st.session_state.model = pickle.load(f)
-                    st.success("✅ Model reloaded from disk.")
-                except:
-                    st.warning("⚠️ Model file not found. Please train with Yahoo Finance first.")
-
             if st.session_state.model is not None and not df.empty:
                 features = [col for col in df.columns if col in ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]]
                 X_live = df[features]
