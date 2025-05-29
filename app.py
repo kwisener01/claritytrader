@@ -32,13 +32,8 @@ if 'latest_signal' not in st.session_state:
 
 st_autorefresh(interval=300000, key="auto_refresh")
 
-# Actions UI
-source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
-ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
-api_key = st.text_input("🔑 Twelve Data API Key", type="password")
-
-# Load model immediately after source selection
-if 'model' not in st.session_state or st.session_state.model is None:
+# Load model on startup
+def load_model():
     try:
         with open("model.pkl", "rb") as f:
             st.session_state.model = pickle.load(f)
@@ -46,6 +41,14 @@ if 'model' not in st.session_state or st.session_state.model is None:
     except:
         st.session_state.model = None
         st.warning("⚠️ No model found on disk. Please train with Yahoo data first.")
+
+if 'model' not in st.session_state or st.session_state.model is None:
+    load_model()
+
+# Actions UI
+source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
+ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
+api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
 # Display latest signal info if exists
 if st.session_state.latest_signal:
@@ -57,12 +60,7 @@ if st.session_state.latest_signal:
 
 # Manual model reload
 if st.button("🔁 Reload Model"):
-    try:
-        with open("model.pkl", "rb") as f:
-            st.session_state.model = pickle.load(f)
-        st.success("✅ Model reloaded from disk.")
-    except:
-        st.warning("⚠️ No model file found. Please train first.")
+    load_model()
 
 # Prediction from Twelve Data
 if source == "🔁 Predict Signal from Twelve Data" and api_key:
