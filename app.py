@@ -16,10 +16,23 @@ def fetch_twelve_data(symbol, api_key):
 
 # Function to add custom features
 def add_custom_features(df):
+    # Ensure 'close', 'high', and 'low' columns are numeric
+    df['close'] = pd.to_numeric(df['close'])
+    df['high'] = pd.to_numeric(df['high'])
+    df['low'] = pd.to_numeric(df['low'])
+
     df["Momentum"] = df["close"].diff().rolling(5).mean()
     df["ATR"] = (df["high"] - df["low"]).abs() + (df["close"].diff().abs())
-    df["RSI"] = 100 * (df["close"] - df["low"].rolling(window=14).min()) / (df["high"].rolling(window=14).max() - df["low"].rolling(window=14).min())
+    
+    # Calculate RSI
+    delta = df["close"].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df["RSI"] = 100 - (100 / (1 + rs))
+    
     return df
+
 
 # Function to predict the stock price
 def predict_price(api_key, symbol):
