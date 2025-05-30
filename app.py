@@ -1,4 +1,41 @@
 import streamlit as st
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+import requests
+import pickle
+
+# Function to fetch Twelve Data intraday data
+def fetch_twelve_data(symbol, api_key):
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval=1min&outputsize=500&apikey={api_key}"
+    response = requests.get(url)
+    df = pd.DataFrame(response.json()['values'])
+    df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%dT%H:%M:%S')
+    df.set_index('datetime', inplace=True)
+    return df
+
+# Function to add custom features
+def add_custom_features(df):
+    df["Momentum"] = df["close"].diff().rolling(5).mean()
+    df["ATR"] = (df["high"] - df["low"]).abs() + (df["close"].diff().abs())
+    df["RSI"] = 100 * (df["close"] - df["low"].rolling(window=14).min()) / (df["high"].rolling(window=14).max() - df["low"].rolling(window=14).min())
+    return df
+
+# Function to predict the stock price
+def predict_price(api_key, symbol):
+    try:
+        df = fetch_twelve_data(symbol, api_key)
+        df = add_custom_features(df)
+        # Assuming last row is the latest data point
+        X_new = df.iloc[-1:].drop(['close'], axis=1)
+        return int(X_new.values[0])
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        return None
+
+# Load pre-trained model
+with open("trained_model.pkl", "rb") as f:
+    model = pickle.load(f)
 
 # Define tabs
 tab1, tab2 = st.tabs(["Train Model with Yahoo Data", "Predict Signal from Twelve Data"])
@@ -23,10 +60,10 @@ with tab2:
         st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
 
     if st.button("Go Live"):
-        # Your prediction code here
-        st.info("Model is running live with the provided parameters.")
-        # Example prediction logic
-        pred = [0, 1]  # Replace this with actual prediction logic
-        st.text(pred[-1])
+        # Fetch and predict the price
+        predicted_price = predict_price(api_key, symbol)
+        if predicted_price is not None:
+            st.info(f"Predicted Signal: {'Bullish' if predicted_price == 1 else 'Bearish'}")
+            st.text(predicted_price)
 
 st.stop()  # Stop further execution if no valid model is found
