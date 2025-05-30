@@ -17,10 +17,16 @@ with tab2:
     symbol = st.text_input("Yahoo Finance Symbol", value="SPY", key="unique_symbol")  # Add unique key here
     refresh_minutes = st.slider("Refresh Minutes", min_value=1, max_value=60)
 
-# Ensure model is not None after training
-if 'model' in st.session_state:
-    st.success("✅ Model loaded from session state.")
-else:
-    st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
+    if 'model' in st.session_state:
+        st.success("✅ Model loaded from session state.")
+    else:
+        st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
+
+    if st.button("Go Live"):
+        # Your prediction code here
+        st.info("Model is running live with the provided parameters.")
+        # Example prediction logic
+        pred = [0, 1]  # Replace this with actual prediction logic
+        st.text(pred[-1])
 
 st.stop()  # Stop further execution if no valid model is found
