@@ -4,12 +4,10 @@ import numpy as np
 import pickle
 import datetime
 import os
-import io
 
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 from streamlit_autorefresh import st_autorefresh
 
 from live_data import fetch_latest_data
@@ -173,3 +171,11 @@ elif source == "📥 Load & Train from Yahoo Finance":
             st.pyplot(fig)
         except Exception as e:
             st.warning(f"⚠️ Training failed: {e}")
+
+# Ensure model is not None after training
+if 'model' in st.session_state and st.session_state.model is not None:
+    st.success("✅ Model available.")
+else:
+    st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
+
+st.stop()  # Stop further execution if no valid model is found
