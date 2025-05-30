@@ -28,11 +28,13 @@ def add_custom_features(df):
     delta = df["close"].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
+    if loss.sum() == 0:
+        rs = pd.Series(0, index=df.index)  # Handle division by zero
+    else:
+        rs = gain / loss
     df["RSI"] = 100 - (100 / (1 + rs))
     
     return df
-
 
 # Function to predict the stock price
 def predict_price(api_key, symbol):
@@ -40,8 +42,8 @@ def predict_price(api_key, symbol):
         df = fetch_twelve_data(symbol, api_key)
         df = add_custom_features(df)
         # Assuming last row is the latest data point
-        X_new = df.iloc[-1:].drop(['close'], axis=1)
-        return int(X_new.values[0])
+        X_new = df.iloc[-1:].drop(['close'], axis=1).values.reshape(1, -1)  # Ensure correct shape for prediction
+        return int(model.predict(X_new)[0])
     except Exception as e:
         st.error(f"An error occurred: {e}")
         return None
