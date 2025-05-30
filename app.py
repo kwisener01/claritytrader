@@ -55,7 +55,7 @@ def predict_price(api_key, symbol):
         return None
 
 # Load pre-trained model
-with open("trained_model.pkl", "rb") as f:
+with open("model.pkl", "rb") as f:
     model = pickle.load(f)
 
 # Define tabs
