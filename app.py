@@ -19,6 +19,13 @@ def fetch_twelve_data(symbol, api_key):
 # Function to add custom features
 def add_custom_features(df):
     # Add your feature engineering code here
+    df['Momentum'] = df['Close'].diff().rolling(5).mean()
+    df['ATR'] = df['High'].diff().abs() + df['Low'].diff().abs() + (df['High'] - df['Low']).abs()
+    df['ATR'] = df['ATR'].rolling(14).mean()
+    df['RSI'] = 100 - (100 / (1 + (
+        df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+        -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
+    )))
     return df
 
 # Function to train a model
@@ -32,31 +39,65 @@ def train_model(df):
 
 # Function to fetch Yahoo intraday data
 def fetch_yahoo_intraday(ticker, period):
-    # Fetch and preprocess Yahoo Finance data here
-    pass
+    url = f"https://query1.finance.yahoo.com/v7/finance/download/{ticker}?period1={int(pd.Timestamp(f'now-{period}').timestamp())}&period2={int(pd.Timestamp.now().timestamp())}&interval=1m&events=history"
+    response = requests.get(url)
+    df = pd.read_csv(response.text, index_col='Date')
+    return df
 
 # Function to run backtest
 def run_backtest(df):
     # Simple backtest logic here
     pass
 
-# Main Streamlit App
+# Streamlit App with Tabs
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 
-# Sidebar options
-with st.sidebar:
-    action = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
+tab1, tab2 = st.tabs(["📈 Load & Train from Yahoo Finance", "🤖 Predict Signal from Twelve Data"])
 
-if action == "🔁 Predict Signal from Twelve Data":
+with tab1:
+    st.header("📈 Load & Train from Yahoo Finance")
+    
+    ticker = st.selectbox("Choose Ticker", ["SPY"])
+    period = st.slider("Period", min_value="1d", max_value="1mo", value="1mo")
     api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+
+    if st.button("🧠 Train Model"):
+        try:
+            hist_df = fetch_yahoo_intraday(ticker, period)
+            hist_df["Momentum"] = hist_df["Close"].diff().rolling(5).mean()
+            hist_df["ATR"] = hist_df["High"].diff().abs() + hist_df["Low"].diff().abs() + (hist_df["High"] - df['Low']).abs()
+            hist_df["ATR"] = hist_df["ATR"].rolling(14).mean()
+            hist_df["RSI"] = 100 - (100 / (1 + (
+                hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+                -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
+            )))
+            hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
+            hist_df["Volume"] = hist_df["Volume"].fillna(1)
+            hist_df = hist_df.dropna()
+
+            if len(hist_df) < 30:
+                raise ValueError("Not enough samples to train a model. Please select a longer period.")
+
+            model = train_model(hist_df)
+            pickle.dump(model, open("model.pkl", "wb"))
+            st.success("✅ Model trained and saved to model.pkl.")
+
+            st.write("### 📊 Label Distribution")
+            st.bar_chart(hist_df["Label"].value_counts())
+
+        except Exception as e:
+            st.warning(f"⚠️ Training failed: {e}")
+
+with tab2:
+    st.header("🤖 Predict Signal from Twelve Data")
+    
+    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+    
     if api_key:
         symbol = "SPY"
         df = fetch_twelve_data(symbol, api_key)
         df = add_custom_features(df)
         df.to_csv("training_data.csv", index=False)
-
-        st.write(f"### Latest Data")
-        st.write(df.tail())
 
         model_path = "model.pkl"
         if not os.path.exists(model_path):
@@ -68,46 +109,6 @@ if action == "🔁 Predict Signal from Twelve Data":
             pred = model.predict(X_live)
             st.write(f"### Live Signal")
             st.text(pred[-1])
-
-if action == "📥 Load & Train from Yahoo Finance":
-    ticker = st.selectbox("Choose Ticker", ["SPY"])
-    period = st.slider("Period", min_value="1d", max_value="1mo", value="1mo")
-    
-    if st.button("🧠 Train Model"):
-        try:
-            hist_df = fetch_yahoo_intraday(ticker, period)
-            hist_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in hist_df.columns]
-            hist_df.rename(columns={
-                "Datetime": "datetime", "Close_SPY": "Close", "High_SPY": "High",
-                "Low_SPY": "Low", "Volume_SPY": "Volume"
-            }, inplace=True)
-
-            hist_df["Momentum"] = hist_df["Close"] - hist_df["Close"].shift(5)
-            hist_df["TR"] = hist_df[["High", "Low"]].max(axis=1) - hist_df[["High", "Low"]].min(axis=1)
-            hist_df["ATR"] = hist_df["TR"].rolling(14).mean()
-            hist_df["RSI"] = 100 - (100 / (1 + (
-                hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
-                -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
-            )))
-            hist_df["Label"] = np.where(hist_df["Close"].shift(-5) > hist_df["Close"], "Buy", "Sell")
-            hist_df["Volume"] = hist_df["Volume"].fillna(1000000)
-            hist_df = hist_df.dropna()
-
-            df = add_custom_features(hist_df)
-            df.to_csv("training_data.csv", index=False)
-
-            if len(df) < 30:
-                raise ValueError("Not enough samples to train a model. Please select a longer period.")
-
-            model = train_model(df)
-            pickle.dump(model, open("model.pkl", "wb"))
-            st.success("✅ Model trained and saved to model.pkl.")
-
-            st.write("### 📊 Label Distribution")
-            st.bar_chart(df["Label"].value_counts())
-
-        except Exception as e:
-            st.warning(f"⚠️ Training failed: {e}")
 
 # Ensure model is not None after training
 if os.path.exists("model.pkl"):
