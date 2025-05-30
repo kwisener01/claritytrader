@@ -19,7 +19,6 @@ def fetch_twelve_data(symbol, api_key):
 def add_custom_features(df):
     df["Momentum"] = df["close"].diff().rolling(5).mean()
     df["ATR"] = (df["high"] - df["low"]).abs() + (df["close"].diff().abs())
-    df["ATR"] /= 2
     df["RSI"] = 100 - (100 / (1 + (
         df["close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
         -df["close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
@@ -56,13 +55,13 @@ with tab1:
     st.header("📈 Load & Train from Yahoo Finance")
     
     ticker = st.selectbox("Choose Ticker", ["SPY"])
-    period_options = [1, 7, 30]  # Days
-    period = st.slider("Period (days)", min_value=min(period_options), max_value=max(period_options))
+    period_options = [5, 7]  # Days for training
+    refresh_minutes = st.slider("Refresh Minutes", min_value=1, max_value=60)
     api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
     if st.button("🧠 Train Model"):
         try:
-            hist_df = fetch_yahoo_intraday(ticker, period)
+            hist_df = fetch_yahoo_intraday(ticker, period_options[st.radio("Choose Training Period", period_options)])
             hist_df["Momentum"] = hist_df["Close"].diff().rolling(5).mean()
             hist_df["ATR"] = (hist_df["High"] - hist_df["Low"]).abs() + (hist_df["Close"].diff().abs())
             hist_df["RSI"] = 100 - (100 / (1 + (
@@ -90,23 +89,28 @@ with tab2:
     st.header("🤖 Predict Signal from Twelve Data")
     
     api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+    symbol = "SPY"
+    refresh_minutes = st.slider("Refresh Minutes", min_value=1, max_value=60)
     
-    if api_key:
-        symbol = "SPY"
-        df = fetch_twelve_data(symbol, api_key)
-        df = add_custom_features(df)
-        df.to_csv("training_data.csv", index=False)
+    if api_key and symbol:
+        try:
+            df = fetch_twelve_data(symbol, api_key)
+            df = add_custom_features(df)
+            df.to_csv("training_data.csv", index=False)
 
-        model_path = "model.pkl"
-        if not os.path.exists(model_path):
-            st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
-        else:
-            with open(model_path, 'rb') as f:
-                model = pickle.load(f)
-            X_live = df[["RSI", "Momentum", "ATR"]]
-            pred = model.predict(X_live)
-            st.write(f"### Live Signal")
-            st.text(pred[-1])
+            model_path = "model.pkl"
+            if not os.path.exists(model_path):
+                st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
+            else:
+                with open(model_path, 'rb') as f:
+                    model = pickle.load(f)
+                X_live = df[["RSI", "Momentum", "ATR"]]
+                pred = model.predict(X_live)
+                st.write(f"### Live Signal")
+                st.text(pred[-1])
+
+        except Exception as e:
+            st.warning(f"⚠️ Prediction failed: {e}")
 
 # Ensure model is not None after training
 if os.path.exists("model.pkl"):
