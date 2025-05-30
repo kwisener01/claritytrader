@@ -58,7 +58,8 @@ with tab1:
     st.header("📈 Load & Train from Yahoo Finance")
     
     ticker = st.selectbox("Choose Ticker", ["SPY"])
-    period = st.slider("Period", min_value="1d", max_value="1mo", value="1mo")
+    period_options = [1, 7, 30]  # Days
+    period = st.slider("Period (days)", min_value=period_options[0], max_value=period_options[-1], value=period_options[2])
     api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
     if st.button("🧠 Train Model"):
