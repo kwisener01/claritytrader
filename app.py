@@ -43,13 +43,19 @@ def predict_price(api_key, symbol):
         df = add_custom_features(df)
         # Assuming last row is the latest data point
         X_new = df.iloc[-1:].drop(['close'], axis=1).values.reshape(1, -1)  # Ensure correct shape for prediction
+        
+        # Ensure only the features used during training are used
+        expected_features = ['Momentum', 'ATR', 'RSI']
+        if not all(feature in X_new[0] for feature in expected_features):
+            raise ValueError("Features do not match expected input")
+        
         return int(model.predict(X_new)[0])
     except Exception as e:
         st.error(f"An error occurred: {e}")
         return None
 
 # Load pre-trained model
-with open("model.pkl", "rb") as f:
+with open("trained_model.pkl", "rb") as f:
     model = pickle.load(f)
 
 # Define tabs
