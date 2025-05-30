@@ -31,7 +31,10 @@ if 'latest_signal' not in st.session_state:
 if 'model' not in st.session_state:
     st.session_state.model = None
 
-st_autorefresh(interval=300000, key="auto_refresh")
+# Refresh interval
+refresh_interval = st.slider("Refresh Interval (seconds)", min_value=60, max_value=3600, value=60)
+
+st_autorefresh(interval=refresh_interval * 1000, key="auto_refresh")
 
 # Load model on startup
 @st.cache_resource
@@ -55,56 +58,29 @@ source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data",
 ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
 api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
-# Display latest signal info if exists
-if st.session_state.latest_signal:
-    signal, confidence, price = st.session_state.latest_signal
-    st.subheader("🔔 Latest Signal")
-    st.metric("Signal", signal)
-    st.metric("Confidence", f"{confidence}%")
-    st.metric("Price", f"${price:.2f}")
-
-# Manual model reload
-if st.button("🔁 Reload Model"):
-    model = load_model_from_disk()
-    if model:
-        st.session_state.model = model
-        st.success("✅ Model reloaded from disk.")
-    else:
-        st.warning("⚠️ Model file not found. Please train with Yahoo Finance first.")
-
-# Prediction from Twelve Data
+# Display current price and prediction
 if source == "🔁 Predict Signal from Twelve Data" and api_key:
     try:
         new_row = fetch_latest_data(ticker, api_key=api_key)
         if "error" in new_row:
             st.warning(f"❌ API Error: {new_row['error']}")
         else:
+            current_price = new_row.get("close", 0)
             df = pd.DataFrame([new_row])
             df = add_custom_features(df).dropna()
 
-            st.write("### 🧠 Live Signal")
+            st.write(f"### Current Price: ${current_price:.2f}")
+
             if st.session_state.model is not None and not df.empty:
                 features = [col for col in df.columns if col in ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]]
                 X_live = df[features]
                 pred = st.session_state.model.predict(X_live)[0]
                 proba = st.session_state.model.predict_proba(X_live)[0]
                 confidence = round(100 * max(proba), 2)
-                price = new_row.get("close", 0)
-                st.metric("Signal", pred)
-                st.metric("Confidence", f"{confidence}%")
-                st.metric("Price", f"${price:.2f}")
-                st.session_state.latest_signal = (pred, confidence, price)
-
-                # Append signal log
-                st.session_state.signal_log.append({
-                    "timestamp": str(datetime.datetime.now()),
-                    "ticker": ticker,
-                    "signal": pred,
-                    "confidence": confidence,
-                    "price": price
-                })
+                st.write(f"### Prediction: {pred} (Confidence: {confidence:.2f}%)")
             else:
                 st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
+
     except Exception as e:
         st.error(f"Error fetching live data: {e}")
 
