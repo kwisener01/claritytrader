@@ -10,7 +10,7 @@ def fetch_twelve_data(symbol, api_key):
     url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval=1min&outputsize=500&apikey={api_key}"
     response = requests.get(url)
     df = pd.DataFrame(response.json()['values'])
-    df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%dT%H:%M:%S')
+    df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%d %H:%M:%S')
     df.set_index('datetime', inplace=True)
     return df
 
@@ -34,7 +34,7 @@ def predict_price(api_key, symbol):
         return None
 
 # Load pre-trained model
-with open("model.pkl", "rb") as f:
+with open("trained_model.pkl", "rb") as f:
     model = pickle.load(f)
 
 # Define tabs
