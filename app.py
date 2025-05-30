@@ -1,7 +1,7 @@
 import streamlit as st
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+import pandas as pd
 import requests
 import pickle
 
@@ -36,27 +36,50 @@ def add_custom_features(df):
     
     return df
 
-# Function to predict the stock price
-def predict_price(api_key, symbol):
+# Function to train the model
+def train_model(api_key, symbol):
     try:
         df = fetch_twelve_data(symbol, api_key)
         df = add_custom_features(df)
-        # Assuming last row is the latest data point
-        X_new = df.iloc[-1:].drop(['close'], axis=1).values.reshape(1, -1)  # Ensure correct shape for prediction
         
-        # Ensure only the features used during training are used
-        expected_features = ['Momentum', 'ATR', 'RSI']
-        if not all(feature in X_new[0] for feature in expected_features):
-            raise ValueError("Features do not match expected input")
+        # Prepare data for training
+        X = df.drop(['close', 'symbol'], axis=1).dropna()
+        y = (df['close'].diff() > 0).astype(int)  # Bullish if price increases, Bearish otherwise
         
-        return int(model.predict(X_new)[0])
+        # Split data into train and test sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Train the model
+        model = LogisticRegression()
+        model.fit(X_train, y_train)
+        
+        return model, X_test, y_test
     except Exception as e:
-        st.error(f"An error occurred: {e}")
+        st.error(f"An error occurred during training: {e}")
+        return None, None, None
+
+# Function to predict the stock price
+def predict_price(model, api_key, symbol):
+    try:
+        df = fetch_twelve_data(symbol, api_key)
+        df = add_custom_features(df)
+        
+        # Get the latest data point
+        X_new = df.iloc[-1:].drop(['close', 'symbol'], axis=1).values.reshape(1, -1)  # Ensure correct shape for prediction
+        
+        # Make a prediction
+        predicted_price = model.predict(X_new)[0]
+        return int(predicted_price)
+    except Exception as e:
+        st.error(f"An error occurred during prediction: {e}")
         return None
 
-# Load pre-trained model
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+# Load pre-trained model and test data (if available)
+model, X_test, y_test = None, None, None
+if "model" not in st.session_state:
+    st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
+else:
+    model, X_test, y_test = st.session_state["model"], st.session_state["X_test"], st.session_state["y_test"]
 
 # Define tabs
 tab1, tab2 = st.tabs(["Train Model with Yahoo Data", "Predict Signal from Twelve Data"])
@@ -66,25 +89,25 @@ with tab1:
     symbol = st.text_input("Yahoo Finance Symbol", value="SPY")
     days_to_train = st.radio("Days to Train Model", ["5", "7"])
     if st.button("Train Model"):
-        # Your training code here
-        st.success("Model trained successfully!")
+        model, X_test, y_test = train_model("", symbol)
+        if model is not None:
+            st.success("Model trained successfully!")
+            st.session_state["model"] = model
+            st.session_state["X_test"] = X_test
+            st.session_state["y_test"] = y_test
 
 with tab2:
     st.header("🤖 Predict Signal from Twelve Data")
     api_key = st.text_input("🔑 Twelve Data API Key", type="password", key="unique_api_key")  # Add unique key here
     symbol = st.text_input("Yahoo Finance Symbol", value="SPY", key="unique_symbol")  # Add unique key here
-    refresh_minutes = st.slider("Refresh Minutes", min_value=1, max_value=60)
-
-    if 'model' in st.session_state:
-        st.success("✅ Model loaded from session state.")
-    else:
+    
+    if model is None:
         st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
-
-    if st.button("Go Live"):
-        # Fetch and predict the price
-        predicted_price = predict_price(api_key, symbol)
-        if predicted_price is not None:
-            st.info(f"Predicted Signal: {'Bullish' if predicted_price == 1 else 'Bearish'}")
-            st.text(predicted_price)
+    else:
+        if st.button("Go Live"):
+            predicted_price = predict_price(model, api_key, symbol)
+            if predicted_price is not None:
+                st.info(f"Predicted Signal: {'Bullish' if predicted_price == 1 else 'Bearish'}")
+                st.text(predicted_price)
 
 st.stop()  # Stop further execution if no valid model is found
