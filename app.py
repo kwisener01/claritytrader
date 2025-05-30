@@ -1,37 +1,35 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import requests
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+import requests
 import pickle
 
-# Function to fetch data from Twelve Data
+# Function to fetch Twelve Data intraday data
 def fetch_twelve_data(symbol, api_key):
-    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval=1m&outputsize=20&apikey={api_key}"
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval=1min&outputsize=500&apikey={api_key}"
     response = requests.get(url)
-    data = response.json()
-    df = pd.DataFrame(data["values"])
-    df['datetime'] = pd.to_datetime(df['datetime'])
+    df = pd.DataFrame(response.json()['values'])
+    df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%dT%H:%M:%S')
     df.set_index('datetime', inplace=True)
     return df
 
 # Function to add custom features
 def add_custom_features(df):
-    # Add your feature engineering code here
-    df['Momentum'] = df['Close'].diff().rolling(5).mean()
-    df['ATR'] = df['High'].diff().abs() + df['Low'].diff().abs() + (df['High'] - df['Low']).abs()
-    df['ATR'] = df['ATR'].rolling(14).mean()
-    df['RSI'] = 100 - (100 / (1 + (
-        df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
-        -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
+    df["Momentum"] = df["close"].diff().rolling(5).mean()
+    df["ATR"] = (df["high"] - df["low"]).abs() + (df["close"].diff().abs())
+    df["ATR"] /= 2
+    df["RSI"] = 100 - (100 / (1 + (
+        df["close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+        -df["close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
     )))
     return df
 
 # Function to train a model
 def train_model(df):
-    X = df[["RSI", "Momentum", "ATR", "Volume"]]
-    y = df["Label"]
+    X = df[["RSI", "Momentum", "ATR"]]
+    y = (df["close"] - df["open"]).apply(lambda x: 1 if x > 0 else 0)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     model = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
     model.fit(X_train, y_train)
@@ -59,15 +57,14 @@ with tab1:
     
     ticker = st.selectbox("Choose Ticker", ["SPY"])
     period_options = [1, 7, 30]  # Days
-    period = st.slider("Period (days)", min_value=period_options[0], max_value=period_options[-1], value=period_options[2])
+    period = st.slider("Period (days)", min_value=min(period_options), max_value=max(period_options))
     api_key = st.text_input("🔑 Twelve Data API Key", type="password")
 
     if st.button("🧠 Train Model"):
         try:
             hist_df = fetch_yahoo_intraday(ticker, period)
             hist_df["Momentum"] = hist_df["Close"].diff().rolling(5).mean()
-            hist_df["ATR"] = hist_df["High"].diff().abs() + hist_df["Low"].diff().abs() + (hist_df["High"] - df['Low']).abs()
-            hist_df["ATR"] = hist_df["ATR"].rolling(14).mean()
+            hist_df["ATR"] = (hist_df["High"] - hist_df["Low"]).abs() + (hist_df["Close"].diff().abs())
             hist_df["RSI"] = 100 - (100 / (1 + (
                 hist_df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
                 -hist_df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
@@ -106,7 +103,7 @@ with tab2:
         else:
             with open(model_path, 'rb') as f:
                 model = pickle.load(f)
-            X_live = df[["RSI", "Momentum", "ATR", "Volume"]]
+            X_live = df[["RSI", "Momentum", "ATR"]]
             pred = model.predict(X_live)
             st.write(f"### Live Signal")
             st.text(pred[-1])
