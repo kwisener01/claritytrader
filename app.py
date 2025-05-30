@@ -1,95 +1,92 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pickle
-import datetime
-import os
-
-from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
-from streamlit_autorefresh import st_autorefresh
+from sklearn.ensemble import RandomForestClassifier
+import pickle
+import requests
 
-from live_data import fetch_latest_data
-from strategy_utils import add_custom_features, generate_signal, run_backtest
-from train_model import train_model
-from yahoo_data import fetch_yahoo_intraday
+# Function to fetch historical data from Yahoo Finance
+def fetch_yahoo_intraday(symbol, period):
+    url = f"https://query1.finance.yahoo.com/v7/finance/download/{symbol}?period1=0&period2={int(time.time())}&interval=1m&events=history"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = requests.get(url, headers=headers)
+    df = pd.read_csv(pd.compat.StringIO(response.text))
+    return df
 
-st.set_page_config(page_title="ClarityTrader Signal", layout="centered")
+# Function to calculate features
+def add_custom_features(df):
+    df["Momentum"] = df["Close"].diff(5)
+    df["TR"] = df[["High", "Low"]].max(axis=1) - df[["High", "Low"]].min(axis=1)
+    df["ATR"] = df["TR"].rolling(14).mean()
+    df["RSI"] = 100 - (100 / (1 + (
+        df["Close"].diff().where(lambda x: x > 0, 0).rolling(14).mean() /
+        -df["Close"].diff().where(lambda x: x < 0, 0).rolling(14).mean()
+    )))
+    df["Label"] = np.where(df["Close"].shift(-5) > df["Close"], "Buy", "Sell")
+    df["Volume"] = df["Volume"].fillna(1000000)
+    df = df.dropna()
+    return df
+
+# Function to train the model
+def train_model(df):
+    X = df[["RSI", "Momentum", "ATR", "Volume"]]
+    y = df["Label"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    model = RandomForestClassifier(n_estimators=100, max_depth=5)
+    model.fit(X_train, y_train)
+    return model
+
+# Function to fetch live data from Twelve Data
+def fetch_twelve_data(symbol, api_key):
+    url = f"https://api.twelvedata.com/time_series?symbol={symbol}&interval=1m&outputsize=20&apikey={api_key}"
+    response = requests.get(url)
+    data = response.json()
+    df = pd.DataFrame(data["values"])
+    df['datetime'] = pd.to_datetime(df['datetime'])
+    df.set_index('datetime', inplace=True)
+    return df
+
+# Function to run backtest
+def run_backtest(df):
+    # Simple backtest logic here
+    pass
+
+# Main Streamlit App
 st.title("🧠 ClarityTrader – Emotion-Free Signal Generator")
 
-# Session Initialization
-if 'training_data' not in st.session_state:
-    st.session_state.training_data = pd.DataFrame()
+# Sidebar options
+with st.sidebar:
+    action = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
 
-if 'signal_log' not in st.session_state:
-    st.session_state.signal_log = []
+if action == "🔁 Predict Signal from Twelve Data":
+    api_key = st.text_input("🔑 Twelve Data API Key", type="password")
+    if api_key:
+        symbol = "SPY"
+        df = fetch_twelve_data(symbol, api_key)
+        df = add_custom_features(df)
+        df.to_csv("training_data.csv", index=False)
 
-if 'latest_signal' not in st.session_state:
-    st.session_state.latest_signal = None
+        st.write(f"### Latest Data")
+        st.write(df.tail())
 
-if 'model' not in st.session_state:
-    st.session_state.model = None
-
-# Refresh interval
-refresh_interval = st.slider("Refresh Interval (seconds)", min_value=60, max_value=3600, value=60)
-
-st_autorefresh(interval=refresh_interval * 1000, key="auto_refresh")
-
-# Load model on startup
-@st.cache_resource
-def load_model_from_disk():
-    try:
-        with open("model.pkl", "rb") as f:
-            return pickle.load(f)
-    except:
-        return None
-
-if st.session_state.model is None:
-    model_from_disk = load_model_from_disk()
-    if model_from_disk:
-        st.session_state.model = model_from_disk
-        st.success("✅ Model loaded from disk.")
-    else:
-        st.warning("⚠️ No model found on disk. Please train with Yahoo data first.")
-
-# Actions UI
-source = st.radio("📡 Choose Action", ["🔁 Predict Signal from Twelve Data", "📥 Load & Train from Yahoo Finance"])
-ticker = st.selectbox("Choose Ticker", ["SPY", "QQQ", "DIA", "IWM"])
-api_key = st.text_input("🔑 Twelve Data API Key", type="password")
-
-# Display current price and prediction
-if source == "🔁 Predict Signal from Twelve Data" and api_key:
-    try:
-        new_row = fetch_latest_data(ticker, api_key=api_key)
-        if "error" in new_row:
-            st.warning(f"❌ API Error: {new_row['error']}")
+        if 'model' in st.session_state and st.session_state.model is not None:
+            X_live = df[["RSI", "Momentum", "ATR", "Volume"]]
+            pred = st.session_state.model.predict(X_live)
+            st.write(f"### Live Signal")
+            st.text(pred[-1])
         else:
-            current_price = new_row.get("close", 0)
-            df = pd.DataFrame([new_row])
-            df = add_custom_features(df).dropna()
+            st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
 
-            st.write(f"### Current Price: ${current_price:.2f}")
-
-            if st.session_state.model is not None and not df.empty:
-                features = [col for col in df.columns if col in ["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]]
-                X_live = df[features]
-                pred = st.session_state.model.predict(X_live)[0]
-                proba = st.session_state.model.predict_proba(X_live)[0]
-                confidence = round(100 * max(proba), 2)
-                st.write(f"### Prediction: {pred} (Confidence: {confidence:.2f}%)")
-            else:
-                st.warning("⚠️ No trained model available. Please train with Yahoo data first.")
-
-    except Exception as e:
-        st.error(f"Error fetching live data: {e}")
-
-# Training from Yahoo Finance
-elif source == "📥 Load & Train from Yahoo Finance":
-    period = st.selectbox("📆 Yahoo Period", ["1d", "5d", "7d", "1mo", "3mo"])
+if action == "📥 Load & Train from Yahoo Finance":
+    ticker = st.selectbox("Choose Ticker", ["SPY"])
+    period = st.slider("Period", min_value="1d", max_value="1mo", value="1mo")
+    
     if st.button("🧠 Train Model"):
         try:
-            hist_df = fetch_yahoo_intraday(symbol=ticker, period=period)
+            hist_df = fetch_yahoo_intraday(ticker, period)
             hist_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in hist_df.columns]
             hist_df.rename(columns={
                 "Datetime": "datetime", "Close_SPY": "Close", "High_SPY": "High",
@@ -122,7 +119,7 @@ elif source == "📥 Load & Train from Yahoo Finance":
             st.write("### 📊 Label Distribution")
             st.bar_chart(df["Label"].value_counts())
 
-            X = df[["RSI", "Momentum", "ATR", "Volume", "Accel", "VolSpike"]]
+            X = df[["RSI", "Momentum", "ATR", "Volume"]]
             y = df["Label"]
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
             y_pred = model.predict(X_test)
@@ -131,9 +128,11 @@ elif source == "📥 Load & Train from Yahoo Finance":
             st.json(run_backtest(df))
 
             st.write("### 📊 Classification Report")
+            from sklearn.metrics import classification_report
             st.text(classification_report(y_test, y_pred))
 
             st.write("### 📊 Confusion Matrix")
+            from sklearn.metrics import confusion_matrix, plot_confusion_matrix
             conf_matrix = confusion_matrix(y_test, y_pred, labels=["Buy", "Sell"])
             fig, ax = plt.subplots()
             im = ax.imshow(conf_matrix, cmap="Blues")
